@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
-import type { RegisterPayload, UserRole } from "../types/authTypes";
+import type { RegisterPayload } from "../types/authTypes";
 
 interface RegisterFormProps {
 	onSubmit: (payload: RegisterPayload) => void;
@@ -10,32 +10,14 @@ export default function RegisterForm({ onSubmit }: RegisterFormProps) {
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
-	const [role, setRole] = useState<UserRole>("client");
 
 	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		onSubmit({ name, email, password, role });
+		onSubmit({ name, email, password });
 	};
 
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4">
-			<div className="flex rounded-lg p-1 mb-6 bg-[#1C1C1C]">
-				{(["client", "admin"] as const).map((selectedRole) => (
-					<button
-						key={selectedRole}
-						type="button"
-						onClick={() => setRole(selectedRole)}
-						className="flex-1 py-2 rounded-md text-sm font-medium transition-all"
-						style={{
-							backgroundColor: role === selectedRole ? "#27272A" : "transparent",
-							color: role === selectedRole ? "#F8F5F0" : "#A1A1AA",
-						}}
-					>
-						{selectedRole === "client" ? "Cliente" : "Administrador"}
-					</button>
-				))}
-			</div>
-
 			<div>
 				<label className="block text-xs font-medium mb-1.5 text-[#A1A1AA]">
 					Nombre completo

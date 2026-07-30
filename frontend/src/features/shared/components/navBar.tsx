@@ -8,7 +8,7 @@ export default function Navbar() {
   const navItems = [
     ["Inicio", "/"],
     ["Servicios", "/services"],
-    ["Galeria", "/gallery"],
+    ["Galeria", "/feed"],
     ["Contacto", "/contact"],
   ] as const;
 
