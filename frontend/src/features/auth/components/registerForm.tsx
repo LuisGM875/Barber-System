@@ -4,16 +4,18 @@ import type { RegisterPayload } from "../types/authTypes";
 
 interface RegisterFormProps {
 	onSubmit: (payload: RegisterPayload) => void;
+	isLoading?: boolean;
 }
 
-export default function RegisterForm({ onSubmit }: RegisterFormProps) {
+export default function RegisterForm({ onSubmit, isLoading = false }: RegisterFormProps) {
 	const [name, setName] = useState("");
 	const [email, setEmail] = useState("");
+	const [phone, setPhone] = useState("");
 	const [password, setPassword] = useState("");
 
 	const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		onSubmit({ name, email, password });
+		onSubmit({ name, email, phone, password });
 	};
 
 	return (
@@ -27,6 +29,20 @@ export default function RegisterForm({ onSubmit }: RegisterFormProps) {
 					value={name}
 					onChange={(event) => setName(event.target.value)}
 					placeholder="Carlos Mendoza"
+					required
+					className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-[#1C1C1C] text-[#F8F5F0] border border-[rgba(248,245,240,0.08)] focus:border-[#C9A96E]"
+				/>
+			</div>
+
+			<div>
+				<label className="block text-xs font-medium mb-1.5 text-[#A1A1AA]">
+					Número de telefono
+				</label>
+				<input
+					type="text"
+					value={phone}
+					onChange={(event) => setPhone(event.target.value)}
+					placeholder="123-456-7890"
 					required
 					className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all bg-[#1C1C1C] text-[#F8F5F0] border border-[rgba(248,245,240,0.08)] focus:border-[#C9A96E]"
 				/>
@@ -48,7 +64,7 @@ export default function RegisterForm({ onSubmit }: RegisterFormProps) {
 
 			<div>
 				<label className="text-xs font-medium mb-1.5 block text-[#A1A1AA]">
-					Contrasena
+					Contraseña
 				</label>
 				<input
 					type="password"
@@ -62,9 +78,10 @@ export default function RegisterForm({ onSubmit }: RegisterFormProps) {
 
 			<button
 				type="submit"
+				disabled={isLoading}
 				className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all hover:scale-[1.01] mt-2 bg-[#C9A96E] text-[#111111]"
 			>
-				Crear cuenta
+				{isLoading ? "Creando..." : "Crear cuenta"}
 			</button>
 		</form>
 	);

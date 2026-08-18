@@ -1,61 +1,139 @@
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
+import { Pencil, Plus, Trash2, X } from "lucide-react";
+import { useAuth } from "../../../app/providers/authProvider";
 import MainLayout from "../../shared/layouts/mainLayout";
-import { useState } from "react"
+import { createPost, deletePost, getPosts, updatePost } from "../services/postService";
+import type { Post, PostPayload } from "../types/postTypes";
+
+const API_URL = "http://localhost:8080";
+const EMPTY_FORM: PostPayload = { title: "", description: "" };
 
 export default function FeedPage() {
-    const galleryPosts = [
-        {
-            id: 1,
-            image: "https://images.unsplash.com/photo-1599351431202-1e0f0137899a?w=600&h=600&fit=crop&auto=format",
-            description: "Corte fade con diseño lateral. Precisión al máximo.",
-            date: "Hace 2 días",
-            likes: 148,
-            comments: 12,
-        },
-    ]
+    const { user } = useAuth();
+    const isAdmin = user?.role?.trim().toUpperCase() === "ADMIN";
+    const [posts, setPosts] = useState<Post[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [editingPost, setEditingPost] = useState<Post | null>(null);
+    const [form, setForm] = useState<PostPayload>(EMPTY_FORM);
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
 
-    const [liked, setLiked] = useState<Set<number>>(new Set())
+    useEffect(() => {
+        getPosts().then(setPosts)
+            .catch((err) => setError(err instanceof Error ? err.message : "No se pudo cargar la galería"))
+            .finally(() => setLoading(false));
+    }, []);
 
-    const toggle = (id: number) => setLiked(prev => {
-        const next = new Set(prev)
-        next.has(id) ? next.delete(id) : next.add(id)
-        return next
-    })
+    const closeModal = () => {
+        setModalOpen(false);
+        setEditingPost(null);
+        setForm(EMPTY_FORM);
+        setImageFile(null);
+        setImagePreview(null);
+        setError(null);
+    };
+
+    const openCreate = () => {
+        setEditingPost(null);
+        setForm(EMPTY_FORM);
+        setImageFile(null);
+        setImagePreview(null);
+        setError(null);
+        setModalOpen(true);
+    };
+
+    const openEdit = (post: Post) => {
+        setEditingPost(post);
+        setForm({ title: post.title, description: post.description });
+        setImageFile(null);
+        setImagePreview(`${API_URL}${post.image}`);
+        setError(null);
+        setModalOpen(true);
+    };
+
+    const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0] ?? null;
+        if (!file) return;
+        if (!file.type.startsWith("image/")) { setError("El archivo seleccionado no es una imagen."); return; }
+        if (file.size > 5 * 1024 * 1024) { setError("La imagen no puede superar los 5 MB."); return; }
+        setImageFile(file);
+        setImagePreview(URL.createObjectURL(file));
+        setError(null);
+    };
+
+    const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        if (!editingPost && !imageFile) { setError("Debes seleccionar una imagen."); return; }
+        setSaving(true);
+        setError(null);
+        try {
+            const saved = editingPost
+                ? await updatePost(editingPost.id, form, imageFile)
+                : await createPost(form, imageFile!);
+            setPosts((current) => editingPost
+                ? current.map((post) => post.id === saved.id ? saved : post)
+                : [saved, ...current]);
+            closeModal();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "No se pudo guardar la publicación");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleDelete = async (post: Post) => {
+        if (!window.confirm(`¿Eliminar la publicación “${post.title}”? También se borrará su imagen.`)) return;
+        try {
+            await deletePost(post.id);
+            setPosts((current) => current.filter((item) => item.id !== post.id));
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "No se pudo eliminar la publicación");
+        }
+    };
 
     return (
         <MainLayout>
-            <section id="gallery" className="py-24 px-6" style={{ backgroundColor: "#0D0D0D" }}>
+            <section id="gallery" className="flex-1 px-6 py-24" style={{ backgroundColor: "#0D0D0D" }}>
                 <div className="max-w-7xl mx-auto">
-                    <div className="text-center mb-16">
-                        <p className="text-xs font-medium tracking-[0.2em] uppercase mb-3" style={{ color: "#C9A96E" }}>Galería</p>
-                        <h2 className="font-display text-4xl lg:text-5xl font-bold" style={{ color: "#F8F5F0" }}>Nuestro trabajo</h2>
+                    <div className="relative mb-16 text-center">
+                        <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-[#C9A96E]">Galería</p>
+                        <h1 className="font-display text-4xl font-bold lg:text-5xl">Nuestro trabajo</h1>
+                        {isAdmin && <button type="button" onClick={openCreate} className="mt-6 inline-flex items-center gap-2 rounded-xl bg-[#C9A96E] px-5 py-3 text-sm font-semibold text-black lg:absolute lg:right-0 lg:top-1/2 lg:mt-0 lg:-translate-y-1/2"><Plus size={18} /> Agregar publicación</button>}
                     </div>
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-                        {galleryPosts.map((post) => (
-                            <div key={post.id} className="group relative rounded-xl overflow-hidden" style={{ aspectRatio: "1", backgroundColor: "#1C1C1C" }}>
-                                <img src={post.image} alt={post.description} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
-                                <div className="absolute inset-0 flex flex-col justify-end p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: "linear-gradient(to top, rgba(17,17,17,0.9) 0%, transparent 50%)" }}>
-                                    <p className="text-xs mb-3 line-clamp-2" style={{ color: "#F8F5F0" }}>{post.description}</p>
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-xs" style={{ color: "#A1A1AA" }}>{post.date}</span>
-                                        <div className="flex items-center gap-3">
-                                            <button onClick={() => toggle(post.id)} className="flex items-center gap-1 text-xs transition-colors" style={{ color: liked.has(post.id) ? "#C9A96E" : "#A1A1AA" }}>
-                                                <svg width="14" height="14" viewBox="0 0 24 24" fill={liked.has(post.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2">
-                                                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                                                </svg>
-                                                {post.likes + (liked.has(post.id) ? 1 : 0)}
-                                            </button>
-                                            <span className="flex items-center gap-1 text-xs" style={{ color: "#A1A1AA" }}>
-                                                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                                                {post.comments}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    {error && !modalOpen && <p className="mb-6 rounded-xl border border-red-500/20 bg-red-500/10 p-4 text-sm text-red-200">{error}</p>}
+                    {loading && <p className="text-center text-sm text-zinc-400">Cargando galería...</p>}
+                    {!loading && posts.length === 0 && <p className="text-center text-sm text-zinc-400">Todavía no hay publicaciones.</p>}
+                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+                        {posts.map((post) => (
+                            <article key={post.id} className="group relative aspect-square overflow-hidden rounded-2xl bg-zinc-900">
+                                <img src={`${API_URL}${post.image}`} alt={post.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                <div className="absolute inset-0 flex flex-col justify-end p-5" style={{ background: "linear-gradient(to top, rgba(10,10,10,.94), transparent 65%)" }}><h2 className="font-display text-xl font-semibold">{post.title}</h2><p className="mt-1 text-sm text-zinc-300">{post.description}</p></div>
+                                {isAdmin && <div className="absolute right-3 top-3 flex gap-2"><button type="button" onClick={() => openEdit(post)} aria-label={`Editar ${post.title}`} title="Editar" className="flex h-10 w-10 items-center justify-center rounded-full bg-black/80 text-[#C9A96E] backdrop-blur"><Pencil size={17} /></button><button type="button" onClick={() => handleDelete(post)} aria-label={`Eliminar ${post.title}`} title="Eliminar" className="flex h-10 w-10 items-center justify-center rounded-full bg-black/80 text-red-400 backdrop-blur"><Trash2 size={17} /></button></div>}
+                            </article>
                         ))}
                     </div>
                 </div>
+
+                {modalOpen && <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6 bg-black/75">
+                    <div className="w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-[#111111]">
+                        <div className="flex items-center justify-between border-b border-white/10 px-6 py-5"><div><p className="text-xs uppercase tracking-[.2em] text-[#C9A96E]">{editingPost ? "Editar publicación" : "Nueva publicación"}</p><h2 className="mt-2 font-display text-2xl font-semibold">Información del post</h2></div><button type="button" onClick={closeModal} className="flex h-9 w-9 items-center justify-center rounded-full bg-zinc-800 text-zinc-300"><X size={18} /></button></div>
+                        <form onSubmit={handleSubmit}>
+                            <div className="max-h-[65vh] space-y-5 overflow-y-auto px-6 py-5">
+                                {error && <p className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">{error}</p>}
+                                <label className="block text-sm text-zinc-400">Título<input required value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none" placeholder="Corte degradado" /></label>
+                                <label className="block text-sm text-zinc-400">Descripción<textarea required rows={4} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} className="mt-2 w-full resize-none rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white outline-none" placeholder="Describe el trabajo realizado..." /></label>
+                                <label className="block text-sm text-zinc-400">Imagen<input type="file" accept="image/png,image/jpeg,image/jpg,image/webp" onChange={handleImageChange} className="mt-2 w-full rounded-xl border border-white/10 bg-zinc-900 px-4 py-3 text-white" /></label>
+                                <p className="text-xs text-zinc-500">PNG, JPG, JPEG o WEBP. Máximo 5 MB.{editingPost ? " Si eliges otra imagen, la anterior se eliminará." : ""}</p>
+                                {imagePreview && <img src={imagePreview} alt="Vista previa" className="h-56 w-full rounded-2xl object-cover" />}
+                            </div>
+                            <div className="flex gap-3 border-t border-white/10 px-6 py-4"><button type="button" onClick={closeModal} disabled={saving} className="rounded-xl border border-white/10 px-5 py-3 text-sm">Cancelar</button><button disabled={saving} className="flex-1 rounded-xl bg-[#C9A96E] px-5 py-3 text-sm font-semibold text-black disabled:opacity-50">{saving ? "Guardando..." : editingPost ? "Guardar cambios" : "Crear publicación"}</button></div>
+                        </form>
+                    </div>
+                </div>}
             </section>
         </MainLayout>
-    )
+    );
 }

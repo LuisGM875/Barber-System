@@ -4,9 +4,10 @@ import type { LoginPayload } from "../types/authTypes";
 
 interface LoginFormProps {
 	onSubmit: (payload: LoginPayload) => void;
+	isLoading?: boolean;
 }
 
-export default function LoginForm({ onSubmit }: LoginFormProps) {
+export default function LoginForm({ onSubmit, isLoading = false }: LoginFormProps) {
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 
@@ -51,9 +52,10 @@ export default function LoginForm({ onSubmit }: LoginFormProps) {
 
 			<button
 				type="submit"
+				disabled={isLoading}
 				className="w-full py-3.5 rounded-xl font-semibold text-sm transition-all hover:scale-[1.01] mt-2 bg-[#C9A96E] text-[#111111]"
 			>
-				Iniciar sesion
+				{isLoading ? "Iniciando..." : "Iniciar sesion"}
 			</button>
 		</form>
 	);

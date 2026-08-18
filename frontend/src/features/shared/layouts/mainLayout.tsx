@@ -9,9 +9,9 @@ interface Props {
 export default function MainLayout({ children }: Props) {
     
     return (
-        <div className="min-h-screen bg-zinc-50">
+        <div className="flex min-h-screen flex-col" style={{ backgroundColor: "#111111" }}>
             <Navbar />
-            <main>
+            <main className="flex flex-1 flex-col">
                 {children}
             </main>
             <Footer/>

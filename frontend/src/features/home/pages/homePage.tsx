@@ -34,7 +34,7 @@ export default function HomePage() {
                             Reserva tu próxima cita de forma rápida y sencilla. Barbería premium en el corazón de la ciudad.
                         </p>
                         <div className="flex flex-wrap gap-3">
-                            <button className="px-8 py-3.5 rounded-lg font-semibold text-sm transition-all hover:scale-105" style={{ backgroundColor: "#C9A96E", color: "#111111" }}>
+                            <button onClick={() => handleNavigate("/booking")} className="px-8 py-3.5 rounded-lg font-semibold text-sm transition-all hover:scale-105" style={{ backgroundColor: "#C9A96E", color: "#111111" }}>
                                 Reservar cita
                             </button>
                             <button onClick={() => handleNavigate("/services")} className="px-8 py-3.5 rounded-lg font-medium text-sm border transition-all" style={{ color: "#F8F5F0", borderColor: "rgba(248,245,240,0.2)" }}

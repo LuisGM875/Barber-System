@@ -1,9 +1,13 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../../app/providers/authProvider";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { isAuthenticated, user, logout } = useAuth();
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
 
   const navItems = [
     ["Inicio", "/"],
@@ -15,7 +19,36 @@ export default function Navbar() {
   const handleNavigate = (path: string) => {
     navigate(path);
     setMenuOpen(false);
+    setUserMenuOpen(false);
   };
+
+  const handleLogout = () => {
+    logout();
+    setUserMenuOpen(false);
+    handleNavigate("/");
+  };
+
+  const handleEditInfo = () => {
+    handleNavigate("/dashboard?section=profile");
+  };
+
+  useEffect(() => {
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (!userMenuRef.current) {
+        return;
+      }
+
+      if (!userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleDocumentClick);
+
+    return () => {
+      document.removeEventListener("mousedown", handleDocumentClick);
+    };
+  }, []);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md border-b" style={{ backgroundColor: "rgba(17,17,17,0.9)", borderColor: "rgba(248,245,240,0.06)" }}>
@@ -41,11 +74,97 @@ export default function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
-          <button onClick={() => handleNavigate("/login")} className="text-sm px-4 py-2 rounded-lg transition-colors" style={{ color: "#A1A1AA" }}
-            onMouseEnter={e => (e.currentTarget.style.color = "#F8F5F0")}
-            onMouseLeave={e => (e.currentTarget.style.color = "#A1A1AA")}>
-            Iniciar sesion
-          </button>
+          {isAuthenticated ? (
+            <div className="relative" ref={userMenuRef}>
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen((prev) => !prev)}
+                className="flex items-center gap-2 rounded-full px-4 py-2 text-sm transition-colors"
+                style={{ color: "#F8F5F0", backgroundColor: "rgba(248,245,240,0.06)" }}
+                onMouseEnter={e => (e.currentTarget.style.backgroundColor = "rgba(248,245,240,0.1)")}
+                onMouseLeave={e => (e.currentTarget.style.backgroundColor = "rgba(248,245,240,0.06)")}
+              >
+                <span>{user?.name ?? "Usuario"}</span>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
+              </button>
+
+              {userMenuOpen ? (
+                <div className="absolute right-0 mt-2 w-56 overflow-hidden rounded-2xl border bg-[#111111] shadow-2xl" style={{ borderColor: "rgba(248,245,240,0.08)" }}>
+                  <div className="px-4 py-3 border-b" style={{ borderColor: "rgba(248,245,240,0.06)" }}>
+                    <p className="text-xs uppercase tracking-[0.18em]" style={{ color: "#A1A1AA" }}>
+                      Sesión
+                    </p>
+                    <p className="mt-1 text-sm font-medium" style={{ color: "#F8F5F0" }}>
+                      {user?.email}
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate("/dashboard")}
+                    className="w-full px-4 py-3 text-left text-sm transition-colors"
+                    style={{ color: "#F8F5F0" }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "rgba(248,245,240,0.06)")}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    Mi cuenta
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate("/dashboard?section=appointments")}
+                    className="w-full px-4 py-3 text-left text-sm transition-colors"
+                    style={{ color: "#F8F5F0" }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "rgba(248,245,240,0.06)")}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    Mis citas
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleNavigate("/dashboard?section=messages")}
+                    className="w-full px-4 py-3 text-left text-sm transition-colors"
+                    style={{ color: "#F8F5F0" }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "rgba(248,245,240,0.06)")}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    Mensajes
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleEditInfo}
+                    className="w-full px-4 py-3 text-left text-sm transition-colors"
+                    style={{ color: "#F8F5F0" }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "rgba(248,245,240,0.06)")}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    Mi Perfil
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full px-4 py-3 text-left text-sm transition-colors"
+                    style={{ color: "#F8F5F0" }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "rgba(248,245,240,0.06)")}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    Cerrar sesión
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <button onClick={() => handleNavigate("/login")} className="text-sm px-4 py-2 rounded-lg transition-colors" style={{ color: "#A1A1AA" }}
+              onMouseEnter={e => (e.currentTarget.style.color = "#F8F5F0")}
+              onMouseLeave={e => (e.currentTarget.style.color = "#A1A1AA")}>
+              Iniciar sesion
+            </button>
+          )}
           <button onClick={() => handleNavigate("/booking")} className="text-sm px-5 py-2 rounded-lg font-medium transition-all" style={{ backgroundColor: "#C9A96E", color: "#111111" }}
             onMouseEnter={e => (e.currentTarget.style.backgroundColor = "#D4B87A")}
             onMouseLeave={e => (e.currentTarget.style.backgroundColor = "#C9A96E")}>
@@ -66,9 +185,70 @@ export default function Navbar() {
             <button key={path} onClick={() => handleNavigate(path)} className="text-sm text-left" style={{ color: "#A1A1AA" }}>{label}</button>
           ))}
           <div className="flex gap-3 pt-2">
-            <button onClick={() => handleNavigate("/login")} className="text-sm px-4 py-2 rounded-lg border" style={{ color: "#F8F5F0", borderColor: "rgba(248,245,240,0.12)" }}>
-              Iniciar sesion
-            </button>
+            {isAuthenticated ? (
+              <div className="w-full">
+                <button
+                  type="button"
+                  onClick={() => setUserMenuOpen((prev) => !prev)}
+                  className="w-full text-sm px-4 py-2 rounded-lg border text-left"
+                  style={{ color: "#F8F5F0", borderColor: "rgba(248,245,240,0.12)" }}
+                >
+                  {user?.name ?? "Usuario"}
+                </button>
+                {userMenuOpen ? (
+                  <div className="mt-2 overflow-hidden rounded-2xl border bg-[#111111]" style={{ borderColor: "rgba(248,245,240,0.08)" }}>
+                    <button
+                      type="button"
+                      onClick={() => handleNavigate("/dashboard")}
+                      className="w-full px-4 py-3 text-left text-sm"
+                      style={{ color: "#F8F5F0" }}
+                    >
+                      Mi cuenta
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleNavigate("/dashboard?section=appointments")}
+                      className="w-full px-4 py-3 text-left text-sm"
+                      style={{ color: "#F8F5F0" }}
+                    >
+                      Mis citas
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleNavigate("/dashboard?section=messages")}
+                      className="w-full px-4 py-3 text-left text-sm"
+                      style={{ color: "#F8F5F0" }}
+                    >
+                      Mensajes
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleEditInfo}
+                      className="w-full px-4 py-3 text-left text-sm"
+                      style={{ color: "#F8F5F0" }}
+                    >
+                      Mi Perfil
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="w-full px-4 py-3 text-left text-sm"
+                      style={{ color: "#F8F5F0" }}
+                    >
+                      Cerrar sesión
+                    </button>
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <button onClick={() => handleNavigate("/login")} className="text-sm px-4 py-2 rounded-lg border" style={{ color: "#F8F5F0", borderColor: "rgba(248,245,240,0.12)" }}>
+                Iniciar sesion
+              </button>
+            )}
             <button onClick={() => handleNavigate("/booking")} className="text-sm px-4 py-2 rounded-lg font-medium" style={{ backgroundColor: "#C9A96E", color: "#111111" }}>
               Reservar
             </button>
