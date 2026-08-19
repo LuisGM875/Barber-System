@@ -19,12 +19,12 @@ export default function AuthLayout({
 	footerActionTo,
 }: AuthLayoutProps) {
 	return (
-		<div className="min-h-screen flex bg-[#111111]">
-			<div className="hidden lg:flex flex-1 relative overflow-hidden">
+		<div className="flex h-[100dvh] overflow-hidden bg-[#111111]">
+			<div className="relative hidden flex-1 overflow-hidden lg:flex">
 				<img
 					src="https://images.unsplash.com/photo-1585747860715-2ba37e788b70?w=800&h=1000&fit=crop&auto=format"
 					alt="Barberia"
-					className="w-full h-full object-cover"
+					className="absolute inset-0 h-full w-full object-cover"
 				/>
 				<div
 					className="absolute inset-0"
@@ -48,11 +48,12 @@ export default function AuthLayout({
 				</div>
 			</div>
 
-			<div className="flex-1 flex items-center justify-center px-8 py-12 max-w-lg mx-auto w-full">
+			<div className="h-full w-full max-w-lg flex-1 overflow-y-auto overscroll-contain">
+				<div className="flex min-h-full items-center justify-center px-5 py-6 sm:px-8">
 				<div className="w-full max-w-sm animate-fadeInUp">
 					<Link
 						to="/"
-						className="inline-flex items-center gap-2 mb-10 text-sm text-[#A1A1AA] hover:text-[#F8F5F0] transition-colors"
+						className="mb-6 inline-flex items-center gap-2 text-sm text-[#A1A1AA] transition-colors hover:text-[#F8F5F0]"
 					>
 						<svg
 							width="14"
@@ -68,7 +69,7 @@ export default function AuthLayout({
 						Volver al inicio
 					</Link>
 
-					<div className="lg:hidden flex items-center gap-2 mb-8">
+					<div className="mb-6 flex items-center gap-2 lg:hidden">
 						<div className="w-7 h-7 rounded-full flex items-center justify-center bg-[#C9A96E]">
 							<span className="text-xs text-[#111111]">✂</span>
 						</div>
@@ -80,7 +81,7 @@ export default function AuthLayout({
 					<h1 className="font-display text-3xl font-bold mb-2 text-[#F8F5F0]">
 						{title}
 					</h1>
-					<p className="text-sm mb-8 text-[#A1A1AA]">{subtitle}</p>
+					<p className="mb-6 text-sm text-[#A1A1AA]">{subtitle}</p>
 
 					{children}
 
@@ -90,6 +91,7 @@ export default function AuthLayout({
 							{footerActionLabel}
 						</Link>
 					</p>
+				</div>
 				</div>
 			</div>
 		</div>

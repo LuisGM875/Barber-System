@@ -1,6 +1,6 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import type { AuthSession, AuthUser, LoginPayload, RegisterPayload, UpdateProfilePayload } from "../../features/auth/types/authTypes";
+import type { AuthMessage, AuthSession, AuthUser, LoginPayload, RegisterPayload, UpdateProfilePayload } from "../../features/auth/types/authTypes";
 import * as authService from "../../features/auth/services/authService";
 
 interface AuthContextValue {
@@ -8,7 +8,7 @@ interface AuthContextValue {
 	token: string | null;
 	isAuthenticated: boolean;
 	login: (payload: LoginPayload) => Promise<AuthSession>;
-	register: (payload: RegisterPayload) => Promise<AuthSession>;
+	register: (payload: RegisterPayload) => Promise<AuthMessage>;
 	logout: () => void;
 	updateProfile: (payload: UpdateProfilePayload) => Promise<AuthUser>;
 	deleteProfile: () => Promise<void>;
@@ -30,9 +30,7 @@ export default function AuthProvider({ children }: Props) {
 	};
 
 	const handleRegister = async (payload: RegisterPayload) => {
-		const nextSession = await authService.register(payload);
-		setSession(nextSession);
-		return nextSession;
+		return authService.register(payload);
 	};
 
 	const handleLogout = () => {
@@ -50,6 +48,34 @@ export default function AuthProvider({ children }: Props) {
 		await authService.deleteProfile();
 		handleLogout();
 	};
+
+	useEffect(() => {
+		const expireSession = () => {
+			authService.logout();
+			setSession(null);
+		};
+
+		window.addEventListener("auth:session-expired", expireSession);
+		if (!session?.token) {
+			return () => window.removeEventListener("auth:session-expired", expireSession);
+		}
+
+		const remaining = authService.millisecondsUntilExpiration(session.token);
+		if (remaining <= 0) {
+			expireSession();
+			return () => window.removeEventListener("auth:session-expired", expireSession);
+		}
+
+		const timer = window.setTimeout(() => {
+			expireSession();
+			window.location.assign("/login?reason=session-expired");
+		}, remaining);
+
+		return () => {
+			window.clearTimeout(timer);
+			window.removeEventListener("auth:session-expired", expireSession);
+		};
+	}, [session?.token]);
 
 	return (
 		<AuthContext.Provider
