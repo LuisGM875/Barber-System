@@ -77,11 +77,15 @@ func main() {
 	chatsHandler := chatHandler.NewHandler(chatsService)
 
 	routerConfig.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     cfg.AllowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
+
+	routerConfig.GET("/health", func(context *gin.Context) {
+		context.JSON(200, gin.H{"status": "ok"})
+	})
 
 	routerConfig.Static("/uploads", "./uploads")
 
@@ -91,7 +95,8 @@ func main() {
 		fmt.Println(route.Method, route.Path)
 	}
 
-	routerConfig.Run(":8080")
-
-	log.Println("Base de datos lista")
+	log.Printf("Servidor escuchando en el puerto %s", cfg.AppPort)
+	if err := routerConfig.Run("0.0.0.0:" + cfg.AppPort); err != nil {
+		log.Fatal("Error iniciando servidor: ", err)
+	}
 }
