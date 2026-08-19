@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import LoginForm from "../components/loginForm";
 import AuthLayout from "../../shared/layouts/authLayout";
 import type { LoginPayload } from "../types/authTypes";
@@ -7,6 +7,7 @@ import { useAuth } from "../../../app/providers/authProvider";
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,6 +33,11 @@ export default function LoginPage() {
       footerActionLabel="Registrate"
       footerActionTo="/register"
     >
+      {searchParams.get("reason") === "session-expired" ? (
+        <p className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+          Tu sesión expiró. Inicia sesión nuevamente para continuar.
+        </p>
+      ) : null}
       {error ? (
         <p className="mb-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-200">
           {error}

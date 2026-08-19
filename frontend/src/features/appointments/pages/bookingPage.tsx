@@ -349,7 +349,7 @@ export default function BookingPage() {
 						</div>
 
 						<div className="flex gap-3 justify-center mt-8">
-							<button onClick={() => navigate("/my-appointments")} className="px-5 py-3 rounded-xl font-medium text-sm" style={{ backgroundColor: "#C9A96E", color: "#111111" }}>
+							<button onClick={() => navigate("/dashboard?section=appointments")} className="px-5 py-3 rounded-xl font-medium text-sm" style={{ backgroundColor: "#C9A96E", color: "#111111" }}>
 								Ver mis citas
 							</button>
 							<button onClick={() => window.location.reload()} className="px-5 py-3 rounded-xl font-medium text-sm border" style={{ color: "#F8F5F0", borderColor: "rgba(248,245,240,0.12)" }}>
@@ -377,7 +377,7 @@ export default function BookingPage() {
 							<h1 className="font-display text-4xl lg:text-5xl font-bold" style={{ color: "#F8F5F0" }}>Reserva tu próxima cita</h1>
 						</div>
 						{!loadingAppointments && existingAppointments.length > 0 ? (
-							<button onClick={() => navigate("/my-appointments")} className="self-start md:self-auto px-4 py-2.5 rounded-xl text-sm font-medium" style={{ backgroundColor: "rgba(201,169,110,0.12)", color: "#C9A96E" }}>
+							<button onClick={() => navigate("/dashboard?section=appointments")} className="self-start md:self-auto px-4 py-2.5 rounded-xl text-sm font-medium" style={{ backgroundColor: "rgba(201,169,110,0.12)", color: "#C9A96E" }}>
 								Tienes {existingAppointments.length} cita{existingAppointments.length > 1 ? "s" : ""}
 							</button>
 						) : null}
@@ -815,7 +815,7 @@ export default function BookingPage() {
 							{!loadingAppointments && existingAppointments.length > 0 && !createdAppointment ? (
 								<div className="mt-6 rounded-2xl p-4" style={{ backgroundColor: "rgba(201,169,110,0.08)", border: "1px solid rgba(201,169,110,0.16)" }}>
 									<p className="text-sm font-medium" style={{ color: "#F8F5F0" }}>Ya tienes {existingAppointments.length} cita{existingAppointments.length > 1 ? "s" : ""} registrada{existingAppointments.length > 1 ? "s" : ""}.</p>
-									<button onClick={() => navigate("/my-appointments")} className="mt-4 w-full py-2.5 rounded-xl text-sm font-medium" style={{ backgroundColor: "#C9A96E", color: "#111111" }}>
+									<button onClick={() => navigate("/dashboard?section=appointments")} className="mt-4 w-full py-2.5 rounded-xl text-sm font-medium" style={{ backgroundColor: "#C9A96E", color: "#111111" }}>
 										Ver mis citas
 									</button>
 								</div>

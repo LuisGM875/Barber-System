@@ -29,3 +29,5 @@ export interface UpdateProfilePayload {
 	email: string;
 	phone: string;
 }
+
+export interface AuthMessage { message: string; }

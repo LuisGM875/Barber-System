@@ -8,12 +8,14 @@ import AuthProvider from '../providers/authProvider';
 import HomePage from "../../features/home/pages/homePage";
 import LoginPage from "../../features/auth/pages/loginPage";
 import RegisterPage from "../../features/auth/pages/registerPage";
+import VerifyEmailPage from "../../features/auth/pages/verifyEmailPage";
+import ForgotPasswordPage from "../../features/auth/pages/forgotPasswordPage";
+import ResetPasswordPage from "../../features/auth/pages/resetPasswordPage";
 import ServicesPage from "../../features/services/pages/servicesPage";
 import FeedPage from '../../features/posts/pages/feedPage';
 import ContactPage from '../../features/home/pages/contactPage';
 import ProtectedRoute from './ProtectedRoute';
 import BookingPage from '../../features/appointments/pages/bookingPage';
-import MyAppointmentsPage from '../../features/appointments/pages/myAppointmentsPage';
 import ClientDashboard from '../../features/dashboard/pages/clientDashboard';
 
 export default function AppRouter() {
@@ -35,6 +37,21 @@ export default function AppRouter() {
                     <Route
                         path="/register"
                         element={<RegisterPage />}
+                    />
+
+                    <Route
+                        path="/verify-email"
+                        element={<VerifyEmailPage />}
+                    />
+
+                    <Route
+                        path="/forgot-password"
+                        element={<ForgotPasswordPage />}
+                    />
+
+                    <Route
+                        path="/reset-password"
+                        element={<ResetPasswordPage />}
                     />
 
                     <Route 
@@ -66,15 +83,6 @@ export default function AppRouter() {
                         element={
                             <ProtectedRoute>
                                 <ClientDashboard />
-                            </ProtectedRoute>
-                        }
-                    />
-
-                    <Route
-                        path="/my-appointments"
-                        element={
-                            <ProtectedRoute>
-                                <MyAppointmentsPage />
                             </ProtectedRoute>
                         }
                     />

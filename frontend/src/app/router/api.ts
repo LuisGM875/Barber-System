@@ -17,10 +17,24 @@ export async function apiRequest<T>(
 		headers.set("Authorization", `Bearer ${token}`);
 	}
 
-	const response = await fetch(`${API_URL}${url}`, {
-		...options,
-		headers,
-	});
+	let response: Response;
+	try {
+		response = await fetch(`${API_URL}${url}`, {
+			...options,
+			headers,
+		});
+	} catch {
+		throw new Error("No se pudo conectar con el servidor. Revisa tu conexión e inténtalo nuevamente.");
+	}
+
+	if (response.status === 401 && token && !url.startsWith("/api/auth/login") && !url.startsWith("/api/auth/register")) {
+		localStorage.removeItem("token");
+		localStorage.removeItem("user");
+		window.dispatchEvent(new Event("auth:session-expired"));
+		if (!window.location.pathname.startsWith("/login")) {
+			window.location.assign("/login?reason=session-expired");
+		}
+	}
 
 	if (response.status === 204) {
 		return undefined as T;
@@ -43,6 +57,9 @@ export async function apiRequest<T>(
 	}
 
 	if (!response.ok) {
+		if (response.status >= 500) {
+			throw new Error("Ocurrió un problema en el servidor. Inténtalo nuevamente en unos momentos.");
+		}
 		throw new Error(data.message || "Error en la petición");
 	}
 
