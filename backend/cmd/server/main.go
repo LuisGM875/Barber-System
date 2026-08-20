@@ -25,6 +25,7 @@ import (
 	serviceHandler "github.com/LuisGM875/barbersystem/internal/features/services/handler"
 	serviceRepository "github.com/LuisGM875/barbersystem/internal/features/services/repository"
 	serviceService "github.com/LuisGM875/barbersystem/internal/features/services/service"
+	"github.com/LuisGM875/barbersystem/internal/storage"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -34,6 +35,9 @@ func main() {
 	cfg := config.Load()
 	if err := middlewareSecurity.ConfigureJWT(cfg.JWTSecret); err != nil {
 		log.Fatal("Configuración JWT inválida: ", err)
+	}
+	if err := storage.Configure(cfg.SupabaseURL, cfg.SupabaseServiceKey, cfg.SupabaseStorageBucket); err != nil {
+		log.Fatal("Configuración de Supabase Storage inválida: ", err)
 	}
 
 	db, err := database.Connect(cfg)
@@ -77,11 +81,15 @@ func main() {
 	chatsHandler := chatHandler.NewHandler(chatsService)
 
 	routerConfig.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"},
+		AllowOrigins:     cfg.AllowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
+
+	routerConfig.GET("/health", func(context *gin.Context) {
+		context.JSON(200, gin.H{"status": "ok"})
+	})
 
 	routerConfig.Static("/uploads", "./uploads")
 
@@ -91,7 +99,8 @@ func main() {
 		fmt.Println(route.Method, route.Path)
 	}
 
-	routerConfig.Run(":8080")
-
-	log.Println("Base de datos lista")
+	log.Printf("Servidor escuchando en el puerto %s", cfg.AppPort)
+	if err := routerConfig.Run("0.0.0.0:" + cfg.AppPort); err != nil {
+		log.Fatal("Error iniciando servidor: ", err)
+	}
 }

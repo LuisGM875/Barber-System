@@ -1,4 +1,17 @@
-const API_URL = "http://localhost:8080";
+export const API_URL = (
+	import.meta.env.VITE_API_URL ?? "http://localhost:8080"
+).replace(/\/+$/, "");
+
+export function getImageUrl(image?: string | null): string {
+	if (!image) return "";
+
+	const value = image.trim();
+	if (/^(https?:|blob:|data:)/i.test(value)) {
+		return value;
+	}
+
+	return `${API_URL}${value.startsWith("/") ? value : `/${value}`}`;
+}
 
 export async function apiRequest<T>(
 	url: string,

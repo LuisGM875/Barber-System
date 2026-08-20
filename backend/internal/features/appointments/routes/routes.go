@@ -9,6 +9,7 @@ import (
 func RegisterRoutes(router *gin.RouterGroup, handler *appointmentHandler.Handler) {
 	router.GET("", handler.ListMine)
 	router.GET("/all", middleware.RequireRole("ADMIN"), handler.ListAll)
+	router.GET("/admin/agenda", middleware.RequireRole("ADMIN"), handler.ListAgenda)
 	router.POST("", handler.Create)
 	router.GET("/availability", handler.GetAvailability)
 	router.PATCH("/:id/confirm", handler.ConfirmAttendance)

@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import MainLayout from "../../shared/layouts/mainLayout";
 import { useAuth } from "../../../app/providers/authProvider";
+import { getImageUrl } from "../../../app/router/api";
 import {
 	getServices,
 	createService,
@@ -111,7 +112,7 @@ export default function ServicesPage() {
 		});
 
 		setImageFile(null);
-		setImagePreview(`http://localhost:8080${service.image}`);
+		setImagePreview(getImageUrl(service.image));
 
 		setError(null);
 		setModalOpen(true);
@@ -383,7 +384,7 @@ export default function ServicesPage() {
 									>
                                         
 										<img
-											src={`http://localhost:8080${service.image}`}
+											src={getImageUrl(service.image)}
 											alt={service.name}
 											className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
 										/>

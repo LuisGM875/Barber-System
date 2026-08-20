@@ -4,6 +4,8 @@ type AppointmentResponse struct {
 	ID              string  `json:"id"`
 	UserID          string  `json:"userId"`
 	UserName        string  `json:"userName,omitempty"`
+	UserEmail       string  `json:"userEmail,omitempty"`
+	UserPhone       string  `json:"userPhone,omitempty"`
 	ServiceID       string  `json:"serviceId"`
 	ServiceName     string  `json:"serviceName"`
 	ServicePrice    float64 `json:"servicePrice"`
