@@ -1,11 +1,11 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from "react";
 import { Pencil, Plus, Trash2, X } from "lucide-react";
 import { useAuth } from "../../../app/providers/authProvider";
+import { getImageUrl } from "../../../app/router/api";
 import MainLayout from "../../shared/layouts/mainLayout";
 import { createPost, deletePost, getPosts, updatePost } from "../services/postService";
 import type { Post, PostPayload } from "../types/postTypes";
 
-const API_URL = "http://localhost:8080";
 const EMPTY_FORM: PostPayload = { title: "", description: "" };
 
 export default function FeedPage() {
@@ -49,7 +49,7 @@ export default function FeedPage() {
         setEditingPost(post);
         setForm({ title: post.title, description: post.description });
         setImageFile(null);
-        setImagePreview(`${API_URL}${post.image}`);
+        setImagePreview(getImageUrl(post.image));
         setError(null);
         setModalOpen(true);
     };
@@ -109,7 +109,7 @@ export default function FeedPage() {
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                         {posts.map((post) => (
                             <article key={post.id} className="group relative aspect-square overflow-hidden rounded-2xl bg-zinc-900">
-                                <img src={`${API_URL}${post.image}`} alt={post.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                                <img src={getImageUrl(post.image)} alt={post.title} className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" />
                                 <div className="absolute inset-0 flex flex-col justify-end p-5" style={{ background: "linear-gradient(to top, rgba(10,10,10,.94), transparent 65%)" }}><h2 className="font-display text-xl font-semibold">{post.title}</h2><p className="mt-1 text-sm text-zinc-300">{post.description}</p></div>
                                 {isAdmin && <div className="absolute right-3 top-3 flex gap-2"><button type="button" onClick={() => openEdit(post)} aria-label={`Editar ${post.title}`} title="Editar" className="flex h-10 w-10 items-center justify-center rounded-full bg-black/80 text-[#C9A96E] backdrop-blur"><Pencil size={17} /></button><button type="button" onClick={() => handleDelete(post)} aria-label={`Eliminar ${post.title}`} title="Eliminar" className="flex h-10 w-10 items-center justify-center rounded-full bg-black/80 text-red-400 backdrop-blur"><Trash2 size={17} /></button></div>}
                             </article>

@@ -11,6 +11,8 @@ export type Appointment = {
 	id: string;
 	userId: string;
 	userName?: string;
+	userEmail?: string;
+	userPhone?: string;
 	serviceId: string;
 	serviceName: string;
 	servicePrice: number;

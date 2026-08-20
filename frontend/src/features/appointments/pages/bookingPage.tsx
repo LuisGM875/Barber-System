@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getImageUrl } from "../../../app/router/api";
 import MainLayout from "../../shared/layouts/mainLayout";
 import {
 	createAppointment,
@@ -339,7 +340,7 @@ export default function BookingPage() {
 
 						<div className="rounded-2xl p-6 text-left" style={{ backgroundColor: "#1C1C1C", border: "1px solid rgba(248,245,240,0.06)" }}>
 							<div className="flex items-center gap-4">
-								<img src={`http://localhost:8080${createdAppointment.serviceImage}`} alt={createdAppointment.serviceName} className="w-20 h-20 rounded-xl object-cover" />
+								<img src={getImageUrl(createdAppointment.serviceImage)} alt={createdAppointment.serviceName} className="w-20 h-20 rounded-xl object-cover" />
 								<div>
 									<h2 className="font-display text-xl font-semibold" style={{ color: "#F8F5F0" }}>{createdAppointment.serviceName}</h2>
 									<p className="text-sm mt-1" style={{ color: "#A1A1AA" }}>{formatLongDate(createdAppointment.appointmentDate)} · {createdAppointment.startTime}</p>
@@ -400,7 +401,7 @@ export default function BookingPage() {
 											return (
 												<button key={service.id} onClick={() => {setSelectedServiceId(service.id); setSelectedTime("");}} className="text-left p-4 rounded-2xl transition-all" style={{ backgroundColor: selected ? "rgba(201,169,110,0.08)" : "#111111", border: `1px solid ${selected ? "#C9A96E" : "rgba(248,245,240,0.06)"}` }}>
 													<div className="flex items-start gap-3">
-														<img src={`http://localhost:8080${service.image}`} alt={service.name} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+												<img src={getImageUrl(service.image)} alt={service.name} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
 														<div className="flex-1 min-w-0">
 															<div className="font-semibold text-sm mb-0.5" style={{ color: "#F8F5F0" }}>{service.name}</div>
 															<div className="text-xs mb-2" style={{ color: "#A1A1AA" }}>{service.duration}</div>
@@ -797,7 +798,7 @@ export default function BookingPage() {
 							<h3 className="font-display text-xl font-semibold mb-4" style={{ color: "#F8F5F0" }}>Resumen</h3>
 							{selectedService ? (
 								<div className="space-y-4">
-									<img src={`http://localhost:8080${selectedService.image}`} alt={selectedService.name} className="w-full h-48 rounded-2xl object-cover" />
+									<img src={getImageUrl(selectedService.image)} alt={selectedService.name} className="w-full h-48 rounded-2xl object-cover" />
 									<div className="space-y-3 text-sm">
 										<div className="flex justify-between gap-4"><span style={{ color: "#A1A1AA" }}>Servicio</span><span style={{ color: "#F8F5F0" }}>{selectedService.name}</span></div>
 										<div className="flex justify-between gap-4"><span style={{ color: "#A1A1AA" }}>Duración</span><span style={{ color: "#F8F5F0" }}>{selectedService.duration}</span></div>

@@ -41,6 +41,12 @@ export async function getAllAppointments(): Promise<Appointment[]> {
 	return apiRequest<Appointment[]>("/api/appointments/all");
 }
 
+export async function getAdminAgenda(from: string, to: string): Promise<Appointment[]> {
+	return apiRequest<Appointment[]>(
+		`/api/appointments/admin/agenda?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`
+	);
+}
+
 export async function confirmAppointment(id: string): Promise<Appointment> {
 	return apiRequest<Appointment>(`/api/appointments/${id}/confirm`, { method: "PATCH" });
 }
