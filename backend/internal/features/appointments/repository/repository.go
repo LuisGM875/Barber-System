@@ -12,6 +12,7 @@ type Repository interface {
 	Create(appointment *models.Appointments) error
 	FindByUserID(userID string) ([]models.Appointments, error)
 	FindAll() ([]models.Appointments, error)
+	FindByDateRange(from, to string) ([]models.Appointments, error)
 	FindByDate(date time.Time) ([]models.Appointments, error)
 	GetByID(id uuid.UUID) (*models.Appointments, error)
 	Update(appointment *models.Appointments) error

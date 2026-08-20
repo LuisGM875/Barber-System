@@ -25,7 +25,7 @@ func appointmentResponse(appointment models.Appointments, now time.Time) dto.App
 		status = "NO_SHOW"
 	}
 	canConfirm := status == "PENDING" && !start.IsZero() && !now.Before(start.Add(-24*time.Hour)) && now.Before(start)
-	return dto.AppointmentResponse{ID: appointment.ID.String(), UserID: appointment.UserID.String(), UserName: appointment.User.Name, ServiceID: appointment.ServiceID.String(), ServiceName: appointment.ServiceName, ServicePrice: appointment.ServicePrice, ServiceDuration: appointment.ServiceDuration, ServiceImage: appointment.ServiceImage, AppointmentDate: appointment.AppointmentDate, StartTime: appointment.StartTime, Status: status, Notes: appointment.Notes, CreatedAt: appointment.CreatedAt.Format(time.RFC3339), CanConfirm: canConfirm, CanComplete: withinCompletionWindow, IsPast: isPast, NeedsReview: needsReview}
+	return dto.AppointmentResponse{ID: appointment.ID.String(), UserID: appointment.UserID.String(), UserName: appointment.User.Name, UserEmail: appointment.User.Email, UserPhone: appointment.User.Phone, ServiceID: appointment.ServiceID.String(), ServiceName: appointment.ServiceName, ServicePrice: appointment.ServicePrice, ServiceDuration: appointment.ServiceDuration, ServiceImage: appointment.ServiceImage, AppointmentDate: appointment.AppointmentDate, StartTime: appointment.StartTime, Status: status, Notes: appointment.Notes, CreatedAt: appointment.CreatedAt.Format(time.RFC3339), CanConfirm: canConfirm, CanComplete: withinCompletionWindow, IsPast: isPast, NeedsReview: needsReview}
 }
 
 func listResponses(appointments []models.Appointments) []dto.AppointmentResponse {
@@ -59,6 +59,29 @@ func (service *service) ListByUserID(userID string) ([]dto.AppointmentResponse, 
 
 func (service *service) ListAll() ([]dto.AppointmentResponse, error) {
 	appointments, err := service.repository.FindAll()
+	if err != nil {
+		return nil, err
+	}
+	return listResponses(appointments), nil
+}
+
+func (service *service) ListAgenda(from, to string) ([]dto.AppointmentResponse, error) {
+	fromDate, err := time.Parse("2006-01-02", from)
+	if err != nil {
+		return nil, errors.New("fecha inicial inválida")
+	}
+	toDate, err := time.Parse("2006-01-02", to)
+	if err != nil {
+		return nil, errors.New("fecha final inválida")
+	}
+	if toDate.Before(fromDate) {
+		return nil, errors.New("el rango de fechas es inválido")
+	}
+	if toDate.Sub(fromDate) > 366*24*time.Hour {
+		return nil, errors.New("el rango de agenda no puede superar un año")
+	}
+
+	appointments, err := service.repository.FindByDateRange(from, to)
 	if err != nil {
 		return nil, err
 	}

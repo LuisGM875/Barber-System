@@ -20,6 +20,7 @@ type Service interface {
 	) ([]dto.AppointmentResponse, error)
 
 	ListAll() ([]dto.AppointmentResponse, error)
+	ListAgenda(from, to string) ([]dto.AppointmentResponse, error)
 	ConfirmAttendance(userID string, appointmentID uuid.UUID) (dto.AppointmentResponse, error)
 	Complete(appointmentID uuid.UUID) (dto.AppointmentResponse, error)
 	SetStatus(appointmentID uuid.UUID, status string) (dto.AppointmentResponse, error)

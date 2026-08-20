@@ -53,7 +53,18 @@ func (r *AppointmentRepository) FindByUserID(
 
 func (r *AppointmentRepository) FindAll() ([]models.Appointments, error) {
 	var appointments []models.Appointments
-	err := r.db.Preload("User").Where("status != ?", "CANCELLED").Find(&appointments).Error
+	err := r.db.Preload("User").Where("status != ?", "CANCELLED").Order("appointment_date ASC, start_time ASC").Find(&appointments).Error
+	return appointments, err
+}
+
+func (r *AppointmentRepository) FindByDateRange(from, to string) ([]models.Appointments, error) {
+	var appointments []models.Appointments
+	err := r.db.
+		Preload("User").
+		Where("appointment_date BETWEEN ? AND ?", from, to).
+		Where("status != ?", "CANCELLED").
+		Order("appointment_date ASC, start_time ASC").
+		Find(&appointments).Error
 	return appointments, err
 }
 

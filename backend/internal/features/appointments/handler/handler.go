@@ -64,6 +64,15 @@ func (handler *Handler) ListAll(context *gin.Context) {
 	context.JSON(http.StatusOK, responses)
 }
 
+func (handler *Handler) ListAgenda(context *gin.Context) {
+	responses, err := handler.service.ListAgenda(context.Query("from"), context.Query("to"))
+	if err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	context.JSON(http.StatusOK, responses)
+}
+
 func (handler *Handler) ConfirmAttendance(context *gin.Context) {
 	id, err := uuid.Parse(context.Param("id"))
 	if err != nil {
