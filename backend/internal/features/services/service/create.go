@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"mime/multipart"
 
-	"github.com/LuisGM875/barbersystem/internal/storage"
 	"github.com/LuisGM875/barbersystem/internal/features/services/dto"
 	"github.com/LuisGM875/barbersystem/internal/features/services/models"
+	"github.com/LuisGM875/barbersystem/internal/storage"
 )
 
 func (service *service) Create(

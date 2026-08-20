@@ -25,6 +25,10 @@ type Config struct {
 	EmailFrom      string
 	FrontendURL    string
 	AllowedOrigins []string
+
+	SupabaseURL           string
+	SupabaseServiceKey    string
+	SupabaseStorageBucket string
 }
 
 func Load() *Config {
@@ -62,6 +66,10 @@ func Load() *Config {
 		EmailFrom:      os.Getenv("EMAIL_FROM"),
 		FrontendURL:    os.Getenv("FRONTEND_URL"),
 		AllowedOrigins: allowedOrigins,
+
+		SupabaseURL:           os.Getenv("SUPABASE_URL"),
+		SupabaseServiceKey:    os.Getenv("SUPABASE_SERVICE_ROLE_KEY"),
+		SupabaseStorageBucket: os.Getenv("SUPABASE_STORAGE_BUCKET"),
 	}
 }
 

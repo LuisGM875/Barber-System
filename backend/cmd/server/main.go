@@ -25,6 +25,7 @@ import (
 	serviceHandler "github.com/LuisGM875/barbersystem/internal/features/services/handler"
 	serviceRepository "github.com/LuisGM875/barbersystem/internal/features/services/repository"
 	serviceService "github.com/LuisGM875/barbersystem/internal/features/services/service"
+	"github.com/LuisGM875/barbersystem/internal/storage"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -34,6 +35,9 @@ func main() {
 	cfg := config.Load()
 	if err := middlewareSecurity.ConfigureJWT(cfg.JWTSecret); err != nil {
 		log.Fatal("Configuración JWT inválida: ", err)
+	}
+	if err := storage.Configure(cfg.SupabaseURL, cfg.SupabaseServiceKey, cfg.SupabaseStorageBucket); err != nil {
+		log.Fatal("Configuración de Supabase Storage inválida: ", err)
 	}
 
 	db, err := database.Connect(cfg)
