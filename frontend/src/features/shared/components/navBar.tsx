@@ -7,6 +7,7 @@ export default function Navbar() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuth();
+  const isAdmin = user?.role?.trim().toUpperCase() === "ADMIN";
   const userMenuRef = useRef<HTMLDivElement | null>(null);
 
   const navItems = [
@@ -145,6 +146,17 @@ export default function Navbar() {
                     Mi Perfil
                   </button>
 
+                  {isAdmin && <button
+                    type="button"
+                    onClick={() => handleNavigate("/dashboard?section=agenda")}
+                    className="w-full px-4 py-3 text-left text-sm transition-colors"
+                    style={{ color: "#F8F5F0" }}
+                    onMouseEnter={e => (e.currentTarget.style.backgroundColor = "rgba(248,245,240,0.06)")}
+                    onMouseLeave={e => (e.currentTarget.style.backgroundColor = "transparent")}
+                  >
+                    Agenda
+                  </button>}
+
                   <button
                     type="button"
                     onClick={handleLogout}
@@ -232,6 +244,15 @@ export default function Navbar() {
                     >
                       Mi Perfil
                     </button>
+
+                    {isAdmin && <button
+                      type="button"
+                      onClick={() => handleNavigate("/dashboard?section=agenda")}
+                      className="w-full px-4 py-3 text-left text-sm"
+                      style={{ color: "#F8F5F0" }}
+                    >
+                      Agenda
+                    </button>}
 
                     <button
                       type="button"
