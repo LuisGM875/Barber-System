@@ -27,6 +27,16 @@ export type Appointment = {
 	canComplete: boolean;
 	isPast: boolean;
 	needsReview: boolean;
+	items?: AppointmentItem[];
+};
+
+export type AppointmentItem = {
+	serviceId: string;
+	name: string;
+	price: number;
+	duration: string;
+	image: string;
+	quantity: number;
 };
 
 export type AppointmentPayload = {
@@ -38,6 +48,7 @@ export type AppointmentPayload = {
 	appointmentDate: string;
 	startTime: string;
 	notes: string;
+	items: { serviceId: string; quantity: number }[];
 };
 
 export type AvailabilityResponse = {

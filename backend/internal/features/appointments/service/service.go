@@ -28,9 +28,10 @@ type Service interface {
 	GetAvailability(
 		date string,
 		serviceID uuid.UUID,
+		serviceIDs []uuid.UUID,
 		excludeAppointmentID *uuid.UUID,
 	) (dto.AvailabilityResponse, error)
-	Reschedule(userID string, appointmentID uuid.UUID, request dto.RescheduleRequest) (dto.AppointmentResponse, error)
+	Reschedule(userID string, role string, appointmentID uuid.UUID, request dto.RescheduleRequest) (dto.AppointmentResponse, error)
 }
 
 type service struct {

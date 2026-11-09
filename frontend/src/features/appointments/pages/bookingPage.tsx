@@ -34,6 +34,7 @@ export default function BookingPage() {
 	const [step, setStep] = useState(1);
 	const [services, setServices] = useState<Service[]>([]);
 	const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
+	const [serviceQuantities, setServiceQuantities] = useState<Record<string, number>>({});
 	const [loadingServices, setLoadingServices] = useState(true);
 	const [selectedDate, setSelectedDate] = useState("");
 	const [selectedTime, setSelectedTime] = useState("");
@@ -52,6 +53,12 @@ export default function BookingPage() {
 		() => services.find((service) => service.id === selectedServiceId) ?? null,
 		[services, selectedServiceId]
 	);
+	const selectedItems = useMemo(
+		() => services.filter((service) => (serviceQuantities[service.id] ?? 0) > 0)
+			.map((service) => ({ service, quantity: serviceQuantities[service.id] })),
+		[services, serviceQuantities]
+	);
+	const totalPrice = selectedItems.reduce((sum, item) => sum + item.service.price * item.quantity, 0);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -63,6 +70,9 @@ export default function BookingPage() {
 				if (!cancelled) {
 					setServices(activeServices);
 					setSelectedServiceId((current) => current ?? activeServices[0]?.id ?? null);
+					if (activeServices.length > 0) {
+						setServiceQuantities((current) => current[activeServices[0].id] ? current : { ...current, [activeServices[0].id]: 1 });
+					}
 				}
 			} catch {
 				if (!cancelled) {
@@ -171,7 +181,9 @@ export default function BookingPage() {
 
 				const response = await getAvailability(
 					selectedDate,
-					serviceId
+					serviceId,
+					undefined,
+					selectedItems.flatMap(({ service, quantity }) => Array(quantity).fill(service.id))
 				);
 
 				if (!cancelled) {
@@ -193,7 +205,7 @@ export default function BookingPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, [selectedDate, selectedServiceId]);
+	}, [selectedDate, selectedServiceId, selectedItems]);
 
 	const today = new Date();
 	today.setHours(0, 0, 0, 0);
@@ -289,7 +301,7 @@ export default function BookingPage() {
 	};
 
 	const handleConfirm = async () => {
-		if (!selectedService || !selectedDate || !selectedTime) {
+		if (!selectedService || !selectedDate || !selectedTime || selectedItems.length === 0) {
 			return;
 		}
 
@@ -311,6 +323,7 @@ export default function BookingPage() {
 			appointmentDate: selectedDate,
 			startTime: selectedTime,
 			notes,
+			items: selectedItems.map(({ service, quantity }) => ({ serviceId: service.id, quantity })),
 		};
 
 		try {
@@ -342,11 +355,25 @@ export default function BookingPage() {
 							<div className="flex items-center gap-4">
 								<img src={getImageUrl(createdAppointment.serviceImage)} alt={createdAppointment.serviceName} className="w-20 h-20 rounded-xl object-cover" />
 								<div>
-									<h2 className="font-display text-xl font-semibold" style={{ color: "#F8F5F0" }}>{createdAppointment.serviceName}</h2>
+									<h2 className="font-display text-xl font-semibold" style={{ color: "#F8F5F0" }}>
+										{createdAppointment.items?.length
+											? createdAppointment.items.map((item) => `${item.name}${item.quantity > 1 ? ` x${item.quantity}` : ""}`).join(" + ")
+											: createdAppointment.serviceName}
+									</h2>
 									<p className="text-sm mt-1" style={{ color: "#A1A1AA" }}>{formatLongDate(createdAppointment.appointmentDate)} · {createdAppointment.startTime}</p>
-									<p className="text-sm mt-1" style={{ color: "#C9A96E" }}>${createdAppointment.servicePrice}</p>
+									<p className="text-sm mt-1" style={{ color: "#C9A96E" }}>${createdAppointment.servicePrice} · {createdAppointment.serviceDuration}</p>
 								</div>
 							</div>
+							{createdAppointment.items && createdAppointment.items.length > 1 ? (
+								<div className="mt-4 border-t border-white/[.06] pt-4 text-sm" style={{ color: "#A1A1AA" }}>
+									{createdAppointment.items.map((item) => (
+										<div key={item.serviceId} className="flex justify-between py-1">
+											<span>{item.name} {item.quantity > 1 ? `x${item.quantity}` : ""}</span>
+											<span>${(item.price * item.quantity).toFixed(2)}</span>
+										</div>
+									))}
+								</div>
+							) : null}
 						</div>
 
 						<div className="flex gap-3 justify-center mt-8">
@@ -397,28 +424,31 @@ export default function BookingPage() {
 									<h2 className="font-display text-2xl font-semibold mb-6" style={{ color: "#F8F5F0" }}>Elige un servicio</h2>
 									<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 										{services.map((service) => {
-											const selected = selectedServiceId === service.id;
+											const quantity = serviceQuantities[service.id] ?? 0;
+											const selected = quantity > 0;
 											return (
-												<button key={service.id} onClick={() => {setSelectedServiceId(service.id); setSelectedTime("");}} className="text-left p-4 rounded-2xl transition-all" style={{ backgroundColor: selected ? "rgba(201,169,110,0.08)" : "#111111", border: `1px solid ${selected ? "#C9A96E" : "rgba(248,245,240,0.06)"}` }}>
+												<div key={service.id} className="text-left p-4 rounded-2xl transition-all" style={{ backgroundColor: selected ? "rgba(201,169,110,0.08)" : "#111111", border: `1px solid ${selected ? "#C9A96E" : "rgba(248,245,240,0.06)"}` }}>
 													<div className="flex items-start gap-3">
-												<img src={getImageUrl(service.image)} alt={service.name} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+														<button type="button" onClick={() => { setSelectedServiceId(service.id); setSelectedTime(""); }} className="flex-1 text-left">
+															<img src={getImageUrl(service.image)} alt={service.name} className="w-14 h-14 rounded-xl object-cover flex-shrink-0" />
+														</button>
 														<div className="flex-1 min-w-0">
 															<div className="font-semibold text-sm mb-0.5" style={{ color: "#F8F5F0" }}>{service.name}</div>
 															<div className="text-xs mb-2" style={{ color: "#A1A1AA" }}>{service.duration}</div>
 															<div className="font-mono-data font-bold text-base" style={{ color: "#C9A96E" }}>${service.price}</div>
 														</div>
-														{selected ? (
-															<div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ backgroundColor: "#C9A96E" }}>
-																<svg width="10" height="10" fill="none" stroke="#111" strokeWidth="3" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5" /></svg>
-															</div>
-														) : null}
+														<div className="flex items-center gap-2">
+															<button type="button" onClick={() => setServiceQuantities((current) => ({ ...current, [service.id]: Math.max(0, quantity - 1) }))} className="h-8 w-8 rounded-full border border-white/10 text-lg text-white/70">−</button>
+															<span className="w-5 text-center text-sm font-semibold text-[#C9A96E]">{quantity}</span>
+															<button type="button" onClick={() => { setSelectedServiceId(service.id); setSelectedTime(""); setServiceQuantities((current) => ({ ...current, [service.id]: quantity + 1 })); }} className="h-8 w-8 rounded-full bg-[#C9A96E] text-lg text-black">+</button>
+														</div>
 													</div>
-												</button>
+												</div>
 										);
 										})}
 									</div>
-									<button disabled={!selectedService} onClick={() => setStep(2)} className="w-full mt-8 py-3.5 rounded-xl font-semibold text-sm transition-all" style={{ backgroundColor: selectedService ? "#C9A96E" : "rgba(201,169,110,0.3)", color: selectedService ? "#111111" : "#A1A1AA", cursor: selectedService ? "pointer" : "not-allowed" }}>
-										Continuar
+									<button disabled={selectedItems.length === 0} onClick={() => setStep(2)} className="w-full mt-8 py-3.5 rounded-xl font-semibold text-sm transition-all" style={{ backgroundColor: selectedItems.length ? "#C9A96E" : "rgba(201,169,110,0.3)", color: selectedItems.length ? "#111111" : "#A1A1AA", cursor: selectedItems.length ? "pointer" : "not-allowed" }}>
+										Continuar · ${totalPrice.toFixed(2)}
 									</button>
 								</div>
 							) : null}

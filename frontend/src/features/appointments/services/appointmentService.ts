@@ -21,12 +21,13 @@ export async function createAppointment(
 export async function getAvailability(
 	date: string,
 	serviceId: string,
-	excludeAppointmentId?: string
+	excludeAppointmentId?: string,
+	serviceIds?: string[]
 ): Promise<AvailabilityResponse> {
 	return apiRequest<AvailabilityResponse>(
 		`/api/appointments/availability?date=${encodeURIComponent(
 			date
-		)}&serviceId=${encodeURIComponent(serviceId)}${excludeAppointmentId ? `&excludeAppointmentId=${encodeURIComponent(excludeAppointmentId)}` : ""}`
+		)}&serviceId=${encodeURIComponent(serviceId)}${serviceIds?.length ? `&serviceIds=${encodeURIComponent(serviceIds.join(","))}` : ""}${excludeAppointmentId ? `&excludeAppointmentId=${encodeURIComponent(excludeAppointmentId)}` : ""}`
 	);
 }
 

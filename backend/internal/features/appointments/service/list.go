@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"sort"
 	"strings"
@@ -12,7 +13,7 @@ import (
 )
 
 func appointmentTime(appointment models.Appointments) (time.Time, error) {
-	return time.ParseInLocation("2006-01-02 15:04", appointment.AppointmentDate+" "+appointment.StartTime, time.Local)
+	return time.ParseInLocation("2006-01-02 15:04", appointment.AppointmentDate+" "+appointment.StartTime, businessLocation)
 }
 
 func appointmentResponse(appointment models.Appointments, now time.Time) dto.AppointmentResponse {
@@ -21,11 +22,22 @@ func appointmentResponse(appointment models.Appointments, now time.Time) dto.App
 	isPast := !start.IsZero() && !start.After(now)
 	withinCompletionWindow := isPast && now.Before(start.Add(24*time.Hour))
 	needsReview := withinCompletionWindow && (status == "PENDING" || status == "CONFIRMED")
-	if isPast && (status == "PENDING" || status == "CONFIRMED") {
-		status = "NO_SHOW"
-	}
 	canConfirm := status == "PENDING" && !start.IsZero() && !now.Before(start.Add(-24*time.Hour)) && now.Before(start)
-	return dto.AppointmentResponse{ID: appointment.ID.String(), UserID: appointment.UserID.String(), UserName: appointment.User.Name, UserEmail: appointment.User.Email, UserPhone: appointment.User.Phone, ServiceID: appointment.ServiceID.String(), ServiceName: appointment.ServiceName, ServicePrice: appointment.ServicePrice, ServiceDuration: appointment.ServiceDuration, ServiceImage: appointment.ServiceImage, AppointmentDate: appointment.AppointmentDate, StartTime: appointment.StartTime, Status: status, Notes: appointment.Notes, CreatedAt: appointment.CreatedAt.Format(time.RFC3339), CanConfirm: canConfirm, CanComplete: withinCompletionWindow, IsPast: isPast, NeedsReview: needsReview}
+	var items []dto.AppointmentItem
+	if len(appointment.Items) > 0 {
+		_ = json.Unmarshal(appointment.Items, &items)
+	}
+	if len(items) == 0 && appointment.ServiceID != uuid.Nil {
+		items = []dto.AppointmentItem{{
+			ServiceID: appointment.ServiceID.String(),
+			Name:      appointment.ServiceName,
+			Price:     appointment.ServicePrice,
+			Duration:  appointment.ServiceDuration,
+			Image:     appointment.ServiceImage,
+			Quantity:  1,
+		}}
+	}
+	return dto.AppointmentResponse{ID: appointment.ID.String(), UserID: appointment.UserID.String(), UserName: appointment.User.Name, UserEmail: appointment.User.Email, UserPhone: appointment.User.Phone, ServiceID: appointment.ServiceID.String(), ServiceName: appointment.ServiceName, ServicePrice: appointment.ServicePrice, ServiceDuration: appointment.ServiceDuration, ServiceImage: appointment.ServiceImage, AppointmentDate: appointment.AppointmentDate, StartTime: appointment.StartTime, Status: status, Notes: appointment.Notes, CreatedAt: appointment.CreatedAt.Format(time.RFC3339), CanConfirm: canConfirm, CanComplete: withinCompletionWindow, IsPast: isPast, NeedsReview: needsReview, Items: items}
 }
 
 func listResponses(appointments []models.Appointments) []dto.AppointmentResponse {

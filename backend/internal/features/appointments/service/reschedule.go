@@ -10,16 +10,19 @@ import (
 	"github.com/google/uuid"
 )
 
-func (service *service) Reschedule(userID string, appointmentID uuid.UUID, request dto.RescheduleRequest) (dto.AppointmentResponse, error) {
+func (service *service) Reschedule(userID string, role string, appointmentID uuid.UUID, request dto.RescheduleRequest) (dto.AppointmentResponse, error) {
 	appointment, err := service.repository.GetByID(appointmentID)
 	if err != nil {
 		return dto.AppointmentResponse{}, err
 	}
-	if appointment.UserID.String() != userID {
+	if role != "ADMIN" && appointment.UserID.String() != userID {
 		return dto.AppointmentResponse{}, errors.New("no puedes reagendar esta cita")
 	}
-	if appointment.Status != "PENDING" {
+	if role != "ADMIN" && appointment.Status != "PENDING" {
 		return dto.AppointmentResponse{}, errors.New("solo se pueden reagendar citas pendientes")
+	}
+	if role == "ADMIN" && appointment.Status != "PENDING" && appointment.Status != "CONFIRMED" {
+		return dto.AppointmentResponse{}, errors.New("no se puede reagendar una cita finalizada")
 	}
 	if !isAvailableTime(request.StartTime) {
 		return dto.AppointmentResponse{}, errors.New("horario inválido")

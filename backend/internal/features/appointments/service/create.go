@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -38,20 +39,40 @@ func (s *service) Create(
 	// 1. BUSCAR EL SERVICIO REAL
 	// --------------------------------------------------
 
-	serviceModel, err := s.serviceRepository.FindByID(
-		request.ServiceID,
-	)
-
-	if err != nil || serviceModel == nil {
-		return dto.AppointmentResponse{}, errors.New(
-			"servicio no encontrado",
-		)
+	requestItems := request.Items
+	if len(requestItems) == 0 {
+		requestItems = []dto.AppointmentItemRequest{{ServiceID: request.ServiceID, Quantity: 1}}
 	}
-
-	if !serviceModel.IsActive {
-		return dto.AppointmentResponse{}, errors.New(
-			"el servicio no está disponible",
-		)
+	items := make([]dto.AppointmentItem, 0, len(requestItems))
+	totalDuration := 0
+	totalPrice := 0.0
+	for _, requestedItem := range requestItems {
+		if requestedItem.Quantity < 1 {
+			return dto.AppointmentResponse{}, errors.New("la cantidad de servicios debe ser mayor a cero")
+		}
+		serviceModel, findErr := s.serviceRepository.FindByID(requestedItem.ServiceID)
+		if findErr != nil || serviceModel == nil {
+			return dto.AppointmentResponse{}, errors.New("servicio no encontrado")
+		}
+		if !serviceModel.IsActive {
+			return dto.AppointmentResponse{}, errors.New("el servicio no está disponible")
+		}
+		duration, durationErr := parseDuration(serviceModel.Duration)
+		if durationErr != nil {
+			return dto.AppointmentResponse{}, durationErr
+		}
+		items = append(items, dto.AppointmentItem{
+			ServiceID: requestedItem.ServiceID, Name: serviceModel.Name,
+			Price: serviceModel.Price, Duration: serviceModel.Duration,
+			Image: serviceModel.Image, Quantity: requestedItem.Quantity,
+		})
+		totalDuration += duration * requestedItem.Quantity
+		totalPrice += serviceModel.Price * float64(requestedItem.Quantity)
+	}
+	primaryItem := items[0]
+	itemsJSON, err := json.Marshal(items)
+	if err != nil {
+		return dto.AppointmentResponse{}, errors.New("no se pudieron preparar los servicios")
 	}
 
 	// --------------------------------------------------
@@ -83,15 +104,7 @@ func (s *service) Create(
 	// 4. OBTENER DURACIÓN REAL DEL SERVICIO
 	// --------------------------------------------------
 
-	newDuration, err := parseDuration(
-		serviceModel.Duration,
-	)
-
-	if err != nil {
-		return dto.AppointmentResponse{}, err
-	}
-
-	newBookingDuration := bookingDuration(newDuration)
+	newBookingDuration := bookingDuration(totalDuration)
 
 	candidateStart, err := timeToMinutes(
 		request.StartTime,
@@ -107,14 +120,15 @@ func (s *service) Create(
 		ID:              uuid.New(),
 		UserID:          userUUID,
 		ServiceID:       serviceUUID,
-		ServiceName:     serviceModel.Name,
-		ServicePrice:    serviceModel.Price,
-		ServiceDuration: serviceModel.Duration,
-		ServiceImage:    serviceModel.Image,
+		ServiceName:     primaryItem.Name,
+		ServicePrice:    totalPrice,
+		ServiceDuration: minutesToDuration(totalDuration),
+		ServiceImage:    primaryItem.Image,
 		AppointmentDate: request.AppointmentDate,
 		StartTime:       request.StartTime,
 		Status:          "PENDING",
 		Notes:           request.Notes,
+		Items:           itemsJSON,
 	}
 
 	// La revisión y la inserción ocurren bajo el mismo bloqueo transaccional.
@@ -162,8 +176,16 @@ func (s *service) Create(
 		StartTime:       appointment.StartTime,
 		Status:          appointment.Status,
 		Notes:           appointment.Notes,
+		Items:           items,
 		CreatedAt:       appointment.CreatedAt.Format(time.RFC3339),
 	}, nil
+}
+
+func minutesToDuration(minutes int) string {
+	if minutes >= 60 {
+		return fmt.Sprintf("%dh%02dmin", minutes/60, minutes%60)
+	}
+	return fmt.Sprintf("%dmin", minutes)
 }
 
 func ensureAppointmentSlotAvailable(repository appointmentRepository.Repository, date time.Time, candidateStart, candidateDuration int, excludeID *uuid.UUID) error {

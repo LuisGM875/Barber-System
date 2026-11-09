@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"github.com/LuisGM875/barbersystem/internal/features/chat/service"
 	"github.com/gin-gonic/gin"
 	"mime/multipart"
@@ -37,7 +38,12 @@ func (h *Handler) Messages(c *gin.Context) {
 func (h *Handler) Send(c *gin.Context) {
 	content := c.PostForm("content")
 	var file *multipart.FileHeader
-	file, _ = c.FormFile("image")
+	var fileErr error
+	file, fileErr = c.FormFile("image")
+	if fileErr != nil && !errors.Is(fileErr, http.ErrMissingFile) {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "no se pudo procesar la imagen: " + fileErr.Error()})
+		return
+	}
 	response, err := h.service.SendMessage(c.Param("id"), c.GetString("userID"), c.GetString("role"), content, file)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})

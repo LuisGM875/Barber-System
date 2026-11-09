@@ -145,6 +145,7 @@ func bookingDuration(serviceDuration int) int {
 func (s *service) GetAvailability(
 	dateValue string,
 	serviceID uuid.UUID,
+	serviceIDs []uuid.UUID,
 	excludeAppointmentID *uuid.UUID,
 ) (dto.AvailabilityResponse, error) {
 
@@ -160,29 +161,24 @@ func (s *service) GetAvailability(
 	}
 
 	// Buscar el servicio real en la tabla services.
-	service, err := s.serviceRepository.FindByID(
-		serviceID.String(),
-	)
-
-	if err != nil {
-		return dto.AvailabilityResponse{}, errors.New(
-			"servicio no encontrado",
-		)
+	if len(serviceIDs) == 0 {
+		serviceIDs = []uuid.UUID{serviceID}
 	}
 
-	if !service.IsActive {
-		return dto.AvailabilityResponse{}, errors.New(
-			"el servicio no está disponible",
-		)
-	}
-
-	// Duración del servicio que el usuario quiere reservar.
-	newDuration, err := parseDuration(
-		service.Duration,
-	)
-
-	if err != nil {
-		return dto.AvailabilityResponse{}, err
+	newDuration := 0
+	for _, id := range serviceIDs {
+		service, err := s.serviceRepository.FindByID(id.String())
+		if err != nil || service == nil {
+			return dto.AvailabilityResponse{}, errors.New("servicio no encontrado")
+		}
+		if !service.IsActive {
+			return dto.AvailabilityResponse{}, errors.New("el servicio no está disponible")
+		}
+		duration, err := parseDuration(service.Duration)
+		if err != nil {
+			return dto.AvailabilityResponse{}, err
+		}
+		newDuration += duration
 	}
 
 	newBookingDuration := bookingDuration(newDuration)

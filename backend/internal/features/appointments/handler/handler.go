@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/LuisGM875/barbersystem/internal/features/appointments/dto"
 	"github.com/LuisGM875/barbersystem/internal/features/appointments/service"
@@ -131,7 +132,7 @@ func (handler *Handler) Reschedule(context *gin.Context) {
 		context.JSON(http.StatusBadRequest, gin.H{"message": "fecha y hora requeridas"})
 		return
 	}
-	response, err := handler.service.Reschedule(context.GetString("userID"), id, request)
+	response, err := handler.service.Reschedule(context.GetString("userID"), context.GetString("role"), id, request)
 	if err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
 		return
@@ -171,6 +172,19 @@ func (handler *Handler) GetAvailability(c *gin.Context) {
 		return
 	}
 
+	serviceIDs := []uuid.UUID{serviceID}
+	if query.ServiceIDs != "" {
+		serviceIDs = make([]uuid.UUID, 0)
+		for _, rawID := range strings.Split(query.ServiceIDs, ",") {
+			id, parseErr := uuid.Parse(strings.TrimSpace(rawID))
+			if parseErr != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"message": "serviceIds inválido"})
+				return
+			}
+			serviceIDs = append(serviceIDs, id)
+		}
+	}
+
 	var excludeAppointmentID *uuid.UUID
 	if query.ExcludeAppointmentID != "" {
 		excludeID, parseErr := uuid.Parse(query.ExcludeAppointmentID)
@@ -184,6 +198,7 @@ func (handler *Handler) GetAvailability(c *gin.Context) {
 	response, err := handler.service.GetAvailability(
 		query.Date,
 		serviceID,
+		serviceIDs,
 		excludeAppointmentID,
 	)
 
