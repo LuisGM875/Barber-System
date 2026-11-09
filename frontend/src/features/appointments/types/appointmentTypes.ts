@@ -13,6 +13,7 @@ export type Appointment = {
 	userName?: string;
 	userEmail?: string;
 	userPhone?: string;
+	isManual: boolean;
 	serviceId: string;
 	serviceName: string;
 	servicePrice: number;
@@ -22,7 +23,6 @@ export type Appointment = {
 	startTime: string;
 	status: string;
 	notes: string;
-	customerName?: string;
 	createdAt: string;
 	canConfirm: boolean;
 	canComplete: boolean;
@@ -49,7 +49,7 @@ export type AppointmentPayload = {
 	appointmentDate: string;
 	startTime: string;
 	notes: string;
-	customerName?: string;
+	clientName?: string;
 	items: { serviceId: string; quantity: number }[];
 };
 

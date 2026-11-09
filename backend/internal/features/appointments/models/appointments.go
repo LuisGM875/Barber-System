@@ -21,7 +21,6 @@ type Appointments struct {
 	StartTime       string         `gorm:"size:5;not null;index"`
 	Status          string         `gorm:"size:20;not null;default:'PENDING'"`
 	Notes           string         `gorm:"type:text"`
-	CustomerName    string         `gorm:"size:160"`
 	Items           datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'"`
 	CreatedAt       time.Time
 	UpdatedAt       time.Time

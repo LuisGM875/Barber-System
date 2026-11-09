@@ -37,11 +37,7 @@ func appointmentResponse(appointment models.Appointments, now time.Time) dto.App
 			Quantity:  1,
 		}}
 	}
-	customerName := appointment.CustomerName
-	if customerName == "" {
-		customerName = appointment.User.Name
-	}
-	return dto.AppointmentResponse{ID: appointment.ID.String(), UserID: appointment.UserID.String(), UserName: appointment.User.Name, UserEmail: appointment.User.Email, UserPhone: appointment.User.Phone, CustomerName: customerName, ServiceID: appointment.ServiceID.String(), ServiceName: appointment.ServiceName, ServicePrice: appointment.ServicePrice, ServiceDuration: appointment.ServiceDuration, ServiceImage: appointment.ServiceImage, AppointmentDate: appointment.AppointmentDate, StartTime: appointment.StartTime, Status: status, Notes: appointment.Notes, CreatedAt: appointment.CreatedAt.Format(time.RFC3339), CanConfirm: canConfirm, CanComplete: withinCompletionWindow, IsPast: isPast, NeedsReview: needsReview, Items: items}
+	return dto.AppointmentResponse{ID: appointment.ID.String(), UserID: appointment.UserID.String(), UserName: appointment.User.Name, UserEmail: appointment.User.Email, UserPhone: appointment.User.Phone, IsManual: appointment.User.Role == "ADMIN", ServiceID: appointment.ServiceID.String(), ServiceName: appointment.ServiceName, ServicePrice: appointment.ServicePrice, ServiceDuration: appointment.ServiceDuration, ServiceImage: appointment.ServiceImage, AppointmentDate: appointment.AppointmentDate, StartTime: appointment.StartTime, Status: status, Notes: appointment.Notes, CreatedAt: appointment.CreatedAt.Format(time.RFC3339), CanConfirm: canConfirm, CanComplete: withinCompletionWindow, IsPast: isPast, NeedsReview: needsReview, Items: items}
 }
 
 func listResponses(appointments []models.Appointments) []dto.AppointmentResponse {

@@ -128,8 +128,10 @@ func (s *service) Create(
 		StartTime:       request.StartTime,
 		Status:          "PENDING",
 		Notes:           request.Notes,
-		CustomerName:    request.CustomerName,
 		Items:           itemsJSON,
+	}
+	if request.ClientName != "" {
+		appointment.ServiceName = request.ClientName
 	}
 
 	// La revisión y la inserción ocurren bajo el mismo bloqueo transaccional.
@@ -149,12 +151,6 @@ func (s *service) Create(
 	if user, findErr := s.userRepository.FindByID(userID); findErr != nil {
 		log.Printf("no se pudo obtener el usuario para enviar la cita %s: %v", appointment.ID, findErr)
 	} else {
-		if appointment.CustomerName == "" {
-			appointment.CustomerName = user.Name
-			if updateErr := s.repository.UpdateCustomerName(appointment.ID, appointment.CustomerName); updateErr != nil {
-				log.Printf("no se pudo guardar el nombre del cliente para la cita %s: %v", appointment.ID, updateErr)
-			}
-		}
 		displayDate := appointmentDate.Format("02/01/2006")
 		emailHTML := email.AppointmentTemplate(email.AppointmentDetails{
 			Name:         user.Name,
@@ -183,7 +179,6 @@ func (s *service) Create(
 		StartTime:       appointment.StartTime,
 		Status:          appointment.Status,
 		Notes:           appointment.Notes,
-		CustomerName:    appointment.CustomerName,
 		Items:           items,
 		CreatedAt:       appointment.CreatedAt.Format(time.RFC3339),
 	}, nil

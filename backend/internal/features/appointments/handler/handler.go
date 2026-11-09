@@ -30,6 +30,9 @@ func (handler *Handler) Create(context *gin.Context) {
 		context.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
 		return
 	}
+	if context.GetString("role") != "ADMIN" {
+		request.ClientName = ""
+	}
 
 	response, err := handler.service.Create(userID, request)
 	if err != nil {
