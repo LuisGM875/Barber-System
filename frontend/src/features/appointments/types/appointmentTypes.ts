@@ -22,6 +22,7 @@ export type Appointment = {
 	startTime: string;
 	status: string;
 	notes: string;
+	customerName?: string;
 	createdAt: string;
 	canConfirm: boolean;
 	canComplete: boolean;
@@ -48,6 +49,7 @@ export type AppointmentPayload = {
 	appointmentDate: string;
 	startTime: string;
 	notes: string;
+	customerName?: string;
 	items: { serviceId: string; quantity: number }[];
 };
 

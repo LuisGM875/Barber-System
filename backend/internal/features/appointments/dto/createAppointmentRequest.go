@@ -10,8 +10,9 @@ type CreateAppointmentRequest struct {
 	AppointmentDate string `json:"appointmentDate" binding:"required"`
 	StartTime       string `json:"startTime" binding:"required"`
 
-	Notes string                   `json:"notes"`
-	Items []AppointmentItemRequest `json:"items"`
+	Notes        string                   `json:"notes"`
+	CustomerName string                   `json:"customerName"`
+	Items        []AppointmentItemRequest `json:"items"`
 }
 
 type AppointmentItemRequest struct {

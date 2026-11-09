@@ -120,3 +120,7 @@ func (r *AppointmentRepository) UpdateSchedule(appointment *models.Appointments)
 		"start_time":       appointment.StartTime,
 	}).Error
 }
+
+func (r *AppointmentRepository) UpdateCustomerName(id uuid.UUID, name string) error {
+	return r.db.Model(&models.Appointments{}).Where("id = ?", id).Update("customer_name", name).Error
+}

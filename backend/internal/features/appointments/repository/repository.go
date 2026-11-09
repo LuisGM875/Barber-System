@@ -17,4 +17,5 @@ type Repository interface {
 	GetByID(id uuid.UUID) (*models.Appointments, error)
 	Update(appointment *models.Appointments) error
 	UpdateSchedule(appointment *models.Appointments) error
+	UpdateCustomerName(id uuid.UUID, name string) error
 }

@@ -20,5 +20,6 @@ type AppointmentResponse struct {
 	CanComplete     bool              `json:"canComplete"`
 	IsPast          bool              `json:"isPast"`
 	NeedsReview     bool              `json:"needsReview"`
+	CustomerName    string            `json:"customerName"`
 	Items           []AppointmentItem `json:"items"`
 }
