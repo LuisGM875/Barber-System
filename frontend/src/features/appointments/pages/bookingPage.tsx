@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "../../../app/providers/authProvider";
 import { getImageUrl } from "../../../app/router/api";
 import MainLayout from "../../shared/layouts/mainLayout";
 import {
@@ -31,6 +32,9 @@ const BUSINESS_CLOSE_TIME = "18:00";
 
 export default function BookingPage() {
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
+	const { user } = useAuth();
+	const isAdmin = user?.role?.trim().toUpperCase() === "ADMIN";
 	const [step, setStep] = useState(1);
 	const [services, setServices] = useState<Service[]>([]);
 	const [selectedServiceId, setSelectedServiceId] = useState<string | null>(null);
@@ -40,6 +44,7 @@ export default function BookingPage() {
 	const [selectedTime, setSelectedTime] = useState("");
 	const [calendarDate, setCalendarDate] = useState(new Date());
 	const [notes, setNotes] = useState("");
+	const [clientName, setClientName] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [createdAppointment, setCreatedAppointment] = useState<Appointment | null>(null);
@@ -69,9 +74,14 @@ export default function BookingPage() {
 				const activeServices = response.filter((service) => service.isActive);
 				if (!cancelled) {
 					setServices(activeServices);
-					setSelectedServiceId((current) => current ?? activeServices[0]?.id ?? null);
-					if (activeServices.length > 0) {
-						setServiceQuantities((current) => current[activeServices[0].id] ? current : { ...current, [activeServices[0].id]: 1 });
+					const requestedServiceId = searchParams.get("serviceId");
+					const requestedService = activeServices.find((service) => service.id === requestedServiceId);
+					if (requestedService) {
+						setSelectedServiceId(requestedService.id);
+						setServiceQuantities({ [requestedService.id]: 1 });
+					} else {
+						setSelectedServiceId(null);
+						setServiceQuantities({});
 					}
 				}
 			} catch {
@@ -91,7 +101,7 @@ export default function BookingPage() {
 		return () => {
 			cancelled = true;
 		};
-	}, []);
+	}, [searchParams]);
 
 	function timeToMinutes(time: string): number {
 		const [hours, minutes] = time.split(":").map(Number);
@@ -304,6 +314,10 @@ export default function BookingPage() {
 		if (!selectedService || !selectedDate || !selectedTime || selectedItems.length === 0) {
 			return;
 		}
+		if (isAdmin && !clientName.trim()) {
+			setError("Escribe el nombre del cliente para esta cita.");
+			return;
+		}
 
 		if (isTimePast(selectedTime)) {
 			setSelectedTime("");
@@ -323,6 +337,7 @@ export default function BookingPage() {
 			appointmentDate: selectedDate,
 			startTime: selectedTime,
 			notes,
+			...(isAdmin ? { clientName: clientName.trim() } : {}),
 			items: selectedItems.map(({ service, quantity }) => ({ serviceId: service.id, quantity })),
 		};
 
@@ -800,6 +815,10 @@ export default function BookingPage() {
 										})}
 									</div>
 									<div className="mt-6">
+										{isAdmin ? <div className="mb-4">
+											<label className="block text-xs font-medium mb-1.5" style={{ color: "#A1A1AA" }}>¿Para quién es la cita?</label>
+											<input value={clientName} onChange={(event) => setClientName(event.target.value)} className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={{ backgroundColor: "#111111", color: "#F8F5F0", border: "1px solid rgba(201,169,110,0.45)" }} placeholder="Nombre del cliente" />
+										</div> : null}
 										<label className="block text-xs font-medium mb-1.5" style={{ color: "#A1A1AA" }}>Notas opcionales</label>
 										<textarea value={notes} onChange={(event) => setNotes(event.target.value)} rows={3} className="w-full px-4 py-3 rounded-xl text-sm outline-none" style={{ backgroundColor: "#111111", color: "#F8F5F0", border: "1px solid rgba(248,245,240,0.08)" }} placeholder="Algún detalle para tu cita..." />
 									</div>

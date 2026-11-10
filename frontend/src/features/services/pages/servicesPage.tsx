@@ -457,7 +457,7 @@ export default function ServicesPage() {
 
 												<button
 													onClick={() =>
-														navigate("/booking")
+														navigate(`/booking?serviceId=${encodeURIComponent(service.id)}`)
 													}
 													className="text-xs px-3 py-1.5 rounded-lg font-medium"
 													style={{

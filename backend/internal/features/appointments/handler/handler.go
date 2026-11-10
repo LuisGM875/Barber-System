@@ -30,7 +30,7 @@ func (handler *Handler) Create(context *gin.Context) {
 		context.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
 		return
 	}
-	if context.GetString("role") != "ADMIN" {
+	if !strings.EqualFold(strings.TrimSpace(context.GetString("role")), "ADMIN") {
 		request.ClientName = ""
 	}
 

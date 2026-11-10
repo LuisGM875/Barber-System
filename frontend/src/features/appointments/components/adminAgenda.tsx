@@ -1,10 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3, Mail, Phone, UserRound } from "lucide-react";
 import { getImageUrl } from "../../../app/router/api";
-import { createAppointment, getAdminAgenda, updateAppointmentStatus } from "../services/appointmentService";
+import { getAdminAgenda, updateAppointmentStatus } from "../services/appointmentService";
 import type { Appointment } from "../types/appointmentTypes";
-import { getServices } from "../../services/services/serviceService";
-import type { Service } from "../../services/types/serviceTypes";
 
 type AppointmentStatus = "CONFIRMED" | "COMPLETED" | "NO_SHOW";
 
@@ -42,8 +40,6 @@ function appointmentServices(appointment: Appointment) {
 		? appointment.items.map((item) => `${item.name}${item.quantity > 1 ? ` x${item.quantity}` : ""}`).join(" + ")
 		: appointment.serviceName;
 }
-const AVAILABLE_TIMES = ["09:00", "09:30", "10:00", "10:30", "11:00", "11:30", "12:00", "12:30", "13:00", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30", "18:00"];
-
 function dateValue(year: number, month: number, day: number) {
 	return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
@@ -66,13 +62,6 @@ export default function AdminAgenda({ onReschedule, onAppointmentUpdated, refres
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [updatingId, setUpdatingId] = useState<string | null>(null);
-	const [manualOpen, setManualOpen] = useState(false);
-	const [manualName, setManualName] = useState("");
-	const [manualDate, setManualDate] = useState(localToday);
-	const [manualTime, setManualTime] = useState("");
-	const [manualServices, setManualServices] = useState<Service[]>([]);
-	const [manualQuantities, setManualQuantities] = useState<Record<string, number>>({});
-	const [manualSaving, setManualSaving] = useState(false);
 
 	const year = visibleMonth.getFullYear();
 	const month = visibleMonth.getMonth();
@@ -108,9 +97,6 @@ export default function AdminAgenda({ onReschedule, onAppointmentUpdated, refres
 	}, [year, month]);
 
 	const selectedAppointments = appointmentsByDate.get(selectedDate) ?? [];
-	const selectedManualItems = manualServices
-		.filter((service) => (manualQuantities[service.id] ?? 0) > 0)
-		.map((service) => ({ service, quantity: manualQuantities[service.id] ?? 0 }));
 	const moveMonth = (offset: number) => {
 		const nextMonth = new Date(year, month + offset, 1);
 		const nextStart = dateValue(nextMonth.getFullYear(), nextMonth.getMonth(), 1);
@@ -121,14 +107,6 @@ export default function AdminAgenda({ onReschedule, onAppointmentUpdated, refres
 		setVisibleMonth(nextMonth);
 		setSelectedDate(today >= nextStart && today <= nextEnd ? today : nextStart);
 	};
-	const goToday = () => {
-		const today = new Date();
-		setLoading(true);
-		setError(null);
-		setVisibleMonth(new Date(today.getFullYear(), today.getMonth(), 1));
-		setSelectedDate(localToday());
-	};
-
 	const updateStatus = async (id: string, status: AppointmentStatus) => {
 		setUpdatingId(id);
 		setError(null);
@@ -143,71 +121,14 @@ export default function AdminAgenda({ onReschedule, onAppointmentUpdated, refres
 		}
 	};
 
-	const openManualForm = async () => {
-		setError(null);
-		try {
-			const services = (await getServices()).filter((service) => service.isActive);
-			setManualServices(services);
-			setManualQuantities({});
-			setManualDate(selectedDate);
-			setManualTime("");
-			setManualName("");
-			setManualOpen(true);
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "No se pudieron cargar los servicios");
-		}
-	};
-
-	const saveManualAppointment = async () => {
-		const first = selectedManualItems[0];
-		if (!manualName.trim() || !manualDate || !manualTime || !first) {
-			setError("Agrega el nombre del cliente, servicios, fecha y horario.");
-			return;
-		}
-		setManualSaving(true);
-		setError(null);
-		try {
-			const appointment = await createAppointment({
-				serviceId: first.service.id,
-				serviceName: first.service.name,
-				servicePrice: first.service.price,
-				serviceDuration: first.service.duration,
-				serviceImage: first.service.image,
-				appointmentDate: manualDate,
-				startTime: manualTime,
-				notes: "",
-				clientName: manualName.trim(),
-				items: selectedManualItems.map(({ service, quantity }) => ({ serviceId: service.id, quantity })),
-			});
-			setAppointments((current) => [...current, appointment]);
-			setSelectedDate(manualDate);
-			setManualOpen(false);
-		} catch (err) {
-			setError(err instanceof Error ? err.message : "No se pudo crear la cita");
-		} finally {
-			setManualSaving(false);
-		}
-	};
-
 	return (
 		<div className="animate-fadeIn">
 			<div className="flex flex-wrap items-end justify-between gap-4">
 				<div><p className="text-xs uppercase tracking-[.2em] text-[#C9A96E]">Administración</p><h1 className="mt-2 font-display text-3xl font-bold">Agenda de citas</h1><p className="mt-2 text-sm text-zinc-400">Selecciona un día para ver clientes, servicios y horarios.</p></div>
-				<div className="flex gap-2"><button onClick={openManualForm} className="rounded-xl bg-[#C9A96E] px-4 py-2.5 text-sm font-semibold text-black">Nueva cita</button><button onClick={goToday} className="rounded-xl border border-[#C9A96E]/30 px-4 py-2.5 text-sm text-[#C9A96E]">Ir a hoy</button></div>
+				
 			</div>
 
 			{error && <p className="mt-5 rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-200">{error}</p>}
-
-			{manualOpen && <div className="mt-6 rounded-3xl border border-[#C9A96E]/20 bg-[#1C1C1C] p-5 sm:p-6">
-				<div className="flex items-center justify-between"><div><p className="text-xs uppercase tracking-[.2em] text-[#C9A96E]">Captura manual</p><h2 className="mt-1 font-display text-2xl font-semibold">Nueva cita para cliente</h2></div><button onClick={() => setManualOpen(false)} className="text-sm text-zinc-400">Cerrar</button></div>
-				<div className="mt-5 grid gap-4 md:grid-cols-3">
-					<label className="text-sm text-zinc-300">Nombre del cliente<input value={manualName} onChange={(event) => setManualName(event.target.value)} placeholder="Ej. María López" className="mt-2 w-full rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-sm outline-none focus:border-[#C9A96E]" /></label>
-					<label className="text-sm text-zinc-300">Fecha<input type="date" value={manualDate} onChange={(event) => { setManualDate(event.target.value); setManualTime(""); }} className="mt-2 w-full rounded-xl border border-white/10 bg-[#111] px-3 py-2.5 text-sm outline-none focus:border-[#C9A96E]" /></label>
-					<div><p className="text-sm text-zinc-300">Servicios</p><div className="mt-2 space-y-2">{manualServices.map((service) => { const quantity = manualQuantities[service.id] ?? 0; return <div key={service.id} className="flex items-center justify-between rounded-xl bg-[#111] px-3 py-2"><span className="text-sm">{service.name} <span className="text-xs text-zinc-500">({service.duration})</span></span><span className="flex items-center gap-2"><button type="button" onClick={() => setManualQuantities((current) => ({ ...current, [service.id]: Math.max(0, quantity - 1) }))} className="h-7 w-7 rounded-full border border-white/10">−</button><span className="w-4 text-center text-[#C9A96E]">{quantity}</span><button type="button" onClick={() => setManualQuantities((current) => ({ ...current, [service.id]: quantity + 1 }))} className="h-7 w-7 rounded-full bg-[#C9A96E] text-black">+</button></span></div>; })}</div></div>
-				</div>
-				<div className="mt-4"><p className="text-sm text-zinc-300">Horario</p><div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-6">{AVAILABLE_TIMES.map((time) => <button key={time} type="button" onClick={() => setManualTime(time)} className="rounded-lg border px-2 py-2 text-sm" style={{ borderColor: manualTime === time ? "#C9A96E" : "rgba(255,255,255,.1)", backgroundColor: manualTime === time ? "#C9A96E" : "#111", color: manualTime === time ? "#111" : "#F8F5F0" }}>{time}</button>)}</div></div>
-				<div className="mt-5 flex justify-end gap-3"><button onClick={() => setManualOpen(false)} className="rounded-xl border border-white/10 px-4 py-2.5 text-sm">Cancelar</button><button disabled={manualSaving} onClick={saveManualAppointment} className="rounded-xl bg-[#C9A96E] px-4 py-2.5 text-sm font-semibold text-black disabled:opacity-50">{manualSaving ? "Guardando..." : "Guardar cita"}</button></div>
-			</div>}
 
 			<div className="mt-7 grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(340px,.85fr)]">
 				<section className="rounded-3xl border border-white/[.06] bg-[#1C1C1C] p-4 sm:p-6">
