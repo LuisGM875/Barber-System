@@ -13,7 +13,7 @@ export type Appointment = {
 	userName?: string;
 	userEmail?: string;
 	userPhone?: string;
-	isManual: boolean;
+	customerName?: string;
 	serviceId: string;
 	serviceName: string;
 	servicePrice: number;
@@ -21,6 +21,7 @@ export type Appointment = {
 	serviceImage: string;
 	appointmentDate: string;
 	startTime: string;
+	endTime: string;
 	status: string;
 	notes: string;
 	createdAt: string;
@@ -28,10 +29,10 @@ export type Appointment = {
 	canComplete: boolean;
 	isPast: boolean;
 	needsReview: boolean;
-	items?: AppointmentItem[];
+	services?: AppointmentService[];
 };
 
-export type AppointmentItem = {
+export type AppointmentService = {
 	serviceId: string;
 	name: string;
 	price: number;
@@ -42,15 +43,11 @@ export type AppointmentItem = {
 
 export type AppointmentPayload = {
 	serviceId: string;
-	serviceName: string;
-	servicePrice: number;
-	serviceDuration: string;
-	serviceImage: string;
 	appointmentDate: string;
 	startTime: string;
 	notes: string;
-	clientName?: string;
-	items: { serviceId: string; quantity: number }[];
+	customerName?: string;
+	services: { serviceId: string; quantity: number }[];
 };
 
 export type AvailabilityResponse = {

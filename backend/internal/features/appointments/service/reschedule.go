@@ -45,15 +45,24 @@ func (service *service) Reschedule(userID string, role string, appointmentID uui
 	if err != nil {
 		return dto.AppointmentResponse{}, errors.New("hora inválida")
 	}
-	duration, err := parseDuration(appointment.ServiceDuration)
+	groupAppointments, err := service.repository.FindByBookingGroupID(appointmentBookingGroupID(*appointment))
 	if err != nil {
 		return dto.AppointmentResponse{}, err
+	}
+	duration := 0
+	for _, row := range groupAppointments {
+		serviceDuration, parseErr := parseDuration(row.ServiceDuration)
+		if parseErr != nil {
+			return dto.AppointmentResponse{}, parseErr
+		}
+		duration += serviceDuration
 	}
 
 	appointment.AppointmentDate = request.AppointmentDate
 	appointment.StartTime = request.StartTime
+	appointment.EndTime = minutesToTime((candidateStart + duration) % (24 * 60))
 	err = service.repository.WithDateLock(request.AppointmentDate, func(lockedRepository appointmentRepository.Repository) error {
-		if err := ensureAppointmentSlotAvailable(lockedRepository, appointmentDate, candidateStart, bookingDuration(duration), &appointment.ID); err != nil {
+		if err := ensureAppointmentSlotAvailable(lockedRepository, appointmentDate, candidateStart, bookingDuration(duration), &appointment.BookingGroupID); err != nil {
 			return err
 		}
 		return lockedRepository.UpdateSchedule(appointment)
@@ -61,5 +70,5 @@ func (service *service) Reschedule(userID string, role string, appointmentID uui
 	if err != nil {
 		return dto.AppointmentResponse{}, err
 	}
-	return appointmentResponse(*appointment, time.Now()), nil
+	return service.responseFor(*appointment)
 }

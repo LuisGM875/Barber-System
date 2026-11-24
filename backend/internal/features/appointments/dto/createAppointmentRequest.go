@@ -1,26 +1,23 @@
 package dto
 
 type CreateAppointmentRequest struct {
-	ServiceID       string  `json:"serviceId" binding:"required"`
-	ServiceName     string  `json:"serviceName" binding:"required"`
-	ServicePrice    float64 `json:"servicePrice" binding:"required"`
-	ServiceDuration string  `json:"serviceDuration" binding:"required"`
-	ServiceImage    string  `json:"serviceImage"`
-
+	ServiceID       string `json:"serviceId" binding:"required"`
 	AppointmentDate string `json:"appointmentDate" binding:"required"`
 	StartTime       string `json:"startTime" binding:"required"`
 
-	Notes      string                   `json:"notes"`
-	ClientName string                   `json:"clientName"`
-	Items      []AppointmentItemRequest `json:"items"`
+	Notes        string                      `json:"notes"`
+	CustomerName string                      `json:"customerName"`
+	ClientName   string                      `json:"clientName"`
+	Services     []AppointmentServiceRequest `json:"services"`
+	LegacyItems  []AppointmentServiceRequest `json:"items,omitempty"`
 }
 
-type AppointmentItemRequest struct {
+type AppointmentServiceRequest struct {
 	ServiceID string `json:"serviceId" binding:"required"`
 	Quantity  int    `json:"quantity" binding:"required,min=1"`
 }
 
-type AppointmentItem struct {
+type AppointmentService struct {
 	ServiceID string  `json:"serviceId"`
 	Name      string  `json:"name"`
 	Price     float64 `json:"price"`

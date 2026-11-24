@@ -1,16 +1,17 @@
 package service
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/LuisGM875/barbersystem/internal/email"
 	"github.com/LuisGM875/barbersystem/internal/features/appointments/dto"
 	"github.com/LuisGM875/barbersystem/internal/features/appointments/models"
 	appointmentRepository "github.com/LuisGM875/barbersystem/internal/features/appointments/repository"
+	serviceModels "github.com/LuisGM875/barbersystem/internal/features/services/models"
 	"github.com/google/uuid"
 )
 
@@ -39,40 +40,55 @@ func (s *service) Create(
 	// 1. BUSCAR EL SERVICIO REAL
 	// --------------------------------------------------
 
-	requestItems := request.Items
-	if len(requestItems) == 0 {
-		requestItems = []dto.AppointmentItemRequest{{ServiceID: request.ServiceID, Quantity: 1}}
+	requestServices := request.Services
+	if len(requestServices) == 0 {
+		requestServices = request.LegacyItems
 	}
-	items := make([]dto.AppointmentItem, 0, len(requestItems))
+	if len(requestServices) == 0 {
+		requestServices = []dto.AppointmentServiceRequest{{ServiceID: request.ServiceID, Quantity: 1}}
+	}
+
+	type serviceSelection struct {
+		service  *serviceModels.Services
+		quantity int
+		duration int
+	}
+	selections := make(map[uuid.UUID]*serviceSelection, len(requestServices))
+	serviceOrder := make([]uuid.UUID, 0, len(requestServices))
 	totalDuration := 0
 	totalPrice := 0.0
-	for _, requestedItem := range requestItems {
-		if requestedItem.Quantity < 1 {
+	for _, requestedService := range requestServices {
+		if requestedService.Quantity < 1 {
 			return dto.AppointmentResponse{}, errors.New("la cantidad de servicios debe ser mayor a cero")
 		}
-		serviceModel, findErr := s.serviceRepository.FindByID(requestedItem.ServiceID)
-		if findErr != nil || serviceModel == nil {
-			return dto.AppointmentResponse{}, errors.New("servicio no encontrado")
+		itemServiceUUID, parseErr := uuid.Parse(requestedService.ServiceID)
+		if parseErr != nil {
+			return dto.AppointmentResponse{}, errors.New("servicio inválido")
 		}
-		if !serviceModel.IsActive {
-			return dto.AppointmentResponse{}, errors.New("el servicio no está disponible")
+		selection, exists := selections[itemServiceUUID]
+		if !exists {
+			serviceModel, findErr := s.serviceRepository.FindByID(itemServiceUUID.String())
+			if findErr != nil || serviceModel == nil {
+				return dto.AppointmentResponse{}, errors.New("servicio no encontrado")
+			}
+			if !serviceModel.IsActive {
+				return dto.AppointmentResponse{}, errors.New("el servicio no está disponible")
+			}
+			duration, durationErr := parseDuration(serviceModel.Duration)
+			if durationErr != nil {
+				return dto.AppointmentResponse{}, durationErr
+			}
+			selection = &serviceSelection{service: serviceModel, duration: duration}
+			selections[itemServiceUUID] = selection
+			serviceOrder = append(serviceOrder, itemServiceUUID)
 		}
-		duration, durationErr := parseDuration(serviceModel.Duration)
-		if durationErr != nil {
-			return dto.AppointmentResponse{}, durationErr
-		}
-		items = append(items, dto.AppointmentItem{
-			ServiceID: requestedItem.ServiceID, Name: serviceModel.Name,
-			Price: serviceModel.Price, Duration: serviceModel.Duration,
-			Image: serviceModel.Image, Quantity: requestedItem.Quantity,
-		})
-		totalDuration += duration * requestedItem.Quantity
-		totalPrice += serviceModel.Price * float64(requestedItem.Quantity)
+		selection.quantity += requestedService.Quantity
+		totalDuration += selection.duration * requestedService.Quantity
+		totalPrice += selection.service.Price * float64(requestedService.Quantity)
 	}
-	primaryItem := items[0]
-	itemsJSON, err := json.Marshal(items)
-	if err != nil {
-		return dto.AppointmentResponse{}, errors.New("no se pudieron preparar los servicios")
+	primarySelection, exists := selections[serviceUUID]
+	if !exists {
+		return dto.AppointmentResponse{}, errors.New("el servicio principal debe estar incluido en la cita")
 	}
 
 	// --------------------------------------------------
@@ -116,22 +132,34 @@ func (s *service) Create(
 		)
 	}
 
-	appointment := models.Appointments{
-		ID:              uuid.New(),
-		UserID:          userUUID,
-		ServiceID:       serviceUUID,
-		ServiceName:     primaryItem.Name,
-		ServicePrice:    totalPrice,
-		ServiceDuration: minutesToDuration(totalDuration),
-		ServiceImage:    primaryItem.Image,
-		AppointmentDate: request.AppointmentDate,
-		StartTime:       request.StartTime,
-		Status:          "PENDING",
-		Notes:           request.Notes,
-		Items:           itemsJSON,
+	endTime := minutesToTime((candidateStart + totalDuration) % (24 * 60))
+	customerName := strings.TrimSpace(request.CustomerName)
+	if customerName == "" {
+		customerName = strings.TrimSpace(request.ClientName)
 	}
-	if request.ClientName != "" {
-		appointment.ServiceName = request.ClientName
+
+	bookingGroupID := uuid.New()
+	appointments := make([]models.Appointments, 0, len(serviceOrder))
+	for _, selectedID := range serviceOrder {
+		selection := selections[selectedID]
+		appointments = append(appointments, models.Appointments{
+			ID:              uuid.New(),
+			BookingGroupID:  bookingGroupID,
+			UserID:          userUUID,
+			ServiceID:       selectedID,
+			CustomerName:    customerName,
+			ServiceName:     selection.service.Name,
+			ServicePrice:    selection.service.Price,
+			ServiceDuration: minutesToDuration(selection.duration * selection.quantity),
+			ServiceImage:    selection.service.Image,
+			Quantity:        selection.quantity,
+			IsPrimary:       selectedID == serviceUUID,
+			AppointmentDate: request.AppointmentDate,
+			StartTime:       request.StartTime,
+			EndTime:         endTime,
+			Status:          "PENDING",
+			Notes:           request.Notes,
+		})
 	}
 
 	// La revisión y la inserción ocurren bajo el mismo bloqueo transaccional.
@@ -140,7 +168,12 @@ func (s *service) Create(
 		if err := ensureAppointmentSlotAvailable(lockedRepository, appointmentDate, candidateStart, newBookingDuration, nil); err != nil {
 			return err
 		}
-		return lockedRepository.Create(&appointment)
+		for index := range appointments {
+			if err := lockedRepository.Create(&appointments[index]); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return dto.AppointmentResponse{}, err
@@ -149,39 +182,25 @@ func (s *service) Create(
 	// La reserva ya está confirmada en la base de datos. Un fallo del proveedor
 	// de correo no debe hacer que el cliente intente crear la misma cita otra vez.
 	if user, findErr := s.userRepository.FindByID(userID); findErr != nil {
-		log.Printf("no se pudo obtener el usuario para enviar la cita %s: %v", appointment.ID, findErr)
+		log.Printf("no se pudo obtener el usuario para enviar la cita %s: %v", bookingGroupID, findErr)
 	} else {
 		displayDate := appointmentDate.Format("02/01/2006")
 		emailHTML := email.AppointmentTemplate(email.AppointmentDetails{
 			Name:         user.Name,
-			Service:      appointment.ServiceName,
+			Service:      primarySelection.service.Name,
 			Date:         displayDate,
-			Time:         appointment.StartTime,
-			Duration:     appointment.ServiceDuration,
-			Price:        fmt.Sprintf("$%.2f MXN", appointment.ServicePrice),
-			Notes:        appointment.Notes,
+			Time:         request.StartTime,
+			Duration:     minutesToDuration(totalDuration),
+			Price:        fmt.Sprintf("$%.2f MXN", totalPrice),
+			Notes:        request.Notes,
 			DashboardURL: s.frontendURL + "/dashboard?section=appointments",
 		})
 		if sendErr := s.emailSender.Send(user.Email, "Confirmación de tu cita en BarberFlow", emailHTML); sendErr != nil {
-			log.Printf("no se pudo enviar el correo de la cita %s: %v", appointment.ID, sendErr)
+			log.Printf("no se pudo enviar el correo de la cita %s: %v", bookingGroupID, sendErr)
 		}
 	}
 
-	return dto.AppointmentResponse{
-		ID:              appointment.ID.String(),
-		UserID:          appointment.UserID.String(),
-		ServiceID:       appointment.ServiceID.String(),
-		ServiceName:     appointment.ServiceName,
-		ServicePrice:    appointment.ServicePrice,
-		ServiceDuration: appointment.ServiceDuration,
-		ServiceImage:    appointment.ServiceImage,
-		AppointmentDate: appointment.AppointmentDate,
-		StartTime:       appointment.StartTime,
-		Status:          appointment.Status,
-		Notes:           appointment.Notes,
-		Items:           items,
-		CreatedAt:       appointment.CreatedAt.Format(time.RFC3339),
-	}, nil
+	return appointmentResponse(appointments, time.Now())
 }
 
 func minutesToDuration(minutes int) string {
@@ -196,16 +215,11 @@ func ensureAppointmentSlotAvailable(repository appointmentRepository.Repository,
 	if err != nil {
 		return err
 	}
-	for _, existing := range appointments {
-		if excludeID != nil && existing.ID == *excludeID {
+	for _, existing := range appointmentIntervals(appointments) {
+		if excludeID != nil && existing.groupID == *excludeID {
 			continue
 		}
-		existingStart, startErr := timeToMinutes(existing.StartTime)
-		existingDuration, durationErr := parseDuration(existing.ServiceDuration)
-		if startErr != nil || durationErr != nil {
-			continue
-		}
-		if timesOverlap(candidateStart, candidateDuration, existingStart, bookingDuration(existingDuration)) {
+		if timesOverlap(candidateStart, candidateDuration, existing.start, bookingDuration(existing.duration)) {
 			return errors.New("el horario seleccionado ya no está disponible")
 		}
 	}

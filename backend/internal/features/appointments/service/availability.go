@@ -132,15 +132,46 @@ func timesOverlap(
 		startB < endA
 }
 
-// bookingDuration devuelve el tiempo durante el cual el servicio necesita
-// bloquear la agenda. Los servicios de más de una hora liberan sus últimos
-// 30 minutos para que la siguiente cita pueda comenzar mientras finalizan.
+// bookingDuration keeps the full appointment duration blocked through its end time.
 func bookingDuration(serviceDuration int) int {
-	if serviceDuration > 60 {
-		return serviceDuration - 30
-	}
-
 	return serviceDuration
+}
+
+type appointmentInterval struct {
+	groupID uuid.UUID
+	start   int
+	duration int
+}
+
+func appointmentBookingGroupID(appointment models.Appointments) uuid.UUID {
+	if appointment.BookingGroupID != uuid.Nil {
+		return appointment.BookingGroupID
+	}
+	return appointment.ID
+}
+
+func appointmentIntervals(appointments []models.Appointments) []appointmentInterval {
+	intervals := make([]appointmentInterval, 0, len(appointments))
+	indexByGroup := make(map[uuid.UUID]int, len(appointments))
+	for _, appointment := range appointments {
+		groupID := appointmentBookingGroupID(appointment)
+		duration, err := parseDuration(appointment.ServiceDuration)
+		if err != nil {
+			continue
+		}
+		start, err := timeToMinutes(appointment.StartTime)
+		if err != nil {
+			continue
+		}
+		index, exists := indexByGroup[groupID]
+		if !exists {
+			index = len(intervals)
+			indexByGroup[groupID] = index
+			intervals = append(intervals, appointmentInterval{groupID: groupID, start: start})
+		}
+		intervals[index].duration += duration
+	}
+	return intervals
 }
 
 func (s *service) GetAvailability(
@@ -246,24 +277,17 @@ func findBookedTimes(
 	excludeAppointmentID *uuid.UUID,
 ) []string {
 	bookedTimes := make([]string, 0)
+	intervals := appointmentIntervals(appointments)
 	for _, availableTime := range availableTimes {
 		candidateStart, err := timeToMinutes(availableTime)
 		if err != nil {
 			continue
 		}
-		for _, appointment := range appointments {
-			if excludeAppointmentID != nil && appointment.ID == *excludeAppointmentID {
+		for _, interval := range intervals {
+			if excludeAppointmentID != nil && interval.groupID == *excludeAppointmentID {
 				continue
 			}
-			existingStart, err := timeToMinutes(appointment.StartTime)
-			if err != nil {
-				continue
-			}
-			existingDuration, err := parseDuration(appointment.ServiceDuration)
-			if err != nil {
-				continue
-			}
-			if timesOverlap(candidateStart, candidateDuration, existingStart, bookingDuration(existingDuration)) {
+			if timesOverlap(candidateStart, candidateDuration, interval.start, bookingDuration(interval.duration)) {
 				bookedTimes = append(bookedTimes, availableTime)
 				break
 			}

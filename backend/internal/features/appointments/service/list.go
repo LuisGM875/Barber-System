@@ -1,8 +1,8 @@
 package service
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
 	"sort"
 	"strings"
 	"time"
@@ -16,31 +16,84 @@ func appointmentTime(appointment models.Appointments) (time.Time, error) {
 	return time.ParseInLocation("2006-01-02 15:04", appointment.AppointmentDate+" "+appointment.StartTime, businessLocation)
 }
 
-func appointmentResponse(appointment models.Appointments, now time.Time) dto.AppointmentResponse {
-	start, _ := appointmentTime(appointment)
-	status := appointment.Status
+func appointmentResponse(appointments []models.Appointments, now time.Time) (dto.AppointmentResponse, error) {
+	if len(appointments) == 0 {
+		return dto.AppointmentResponse{}, errors.New("la cita no contiene servicios")
+	}
+
+	sort.SliceStable(appointments, func(i, j int) bool {
+		return appointments[i].IsPrimary && !appointments[j].IsPrimary
+	})
+	primary := appointments[0]
+	start, err := appointmentTime(primary)
+	if err != nil {
+		return dto.AppointmentResponse{}, errors.New("fecha de cita inválida")
+	}
+
+	totalDuration := 0
+	totalPrice := 0.0
+	services := make([]dto.AppointmentService, 0, len(appointments))
+	for _, appointment := range appointments {
+		quantity := appointment.Quantity
+		if quantity < 1 {
+			quantity = 1
+		}
+		duration, err := parseDuration(appointment.ServiceDuration)
+		if err != nil {
+			return dto.AppointmentResponse{}, fmt.Errorf("duración inválida para el servicio %s: %w", appointment.ServiceID, err)
+		}
+		totalDuration += duration
+		totalPrice += appointment.ServicePrice * float64(quantity)
+		services = append(services, dto.AppointmentService{
+			ServiceID: appointment.ServiceID.String(),
+			Name:      appointment.ServiceName,
+			Price:     appointment.ServicePrice,
+			Duration:  minutesToDuration(duration / quantity),
+			Image:     appointment.ServiceImage,
+			Quantity:  quantity,
+		})
+	}
+
+	endTime := primary.EndTime
+	if endTime == "" {
+		startMinutes, _ := timeToMinutes(primary.StartTime)
+		endTime = minutesToTime((startMinutes + totalDuration) % (24 * 60))
+	}
+
+	status := primary.Status
 	isPast := !start.IsZero() && !start.After(now)
 	withinCompletionWindow := isPast && now.Before(start.Add(24*time.Hour))
 	needsReview := withinCompletionWindow && (status == "PENDING" || status == "CONFIRMED")
 	canConfirm := status == "PENDING" && !start.IsZero() && !now.Before(start.Add(-24*time.Hour)) && now.Before(start)
-	var items []dto.AppointmentItem
-	if len(appointment.Items) > 0 {
-		_ = json.Unmarshal(appointment.Items, &items)
-	}
-	if len(items) == 0 && appointment.ServiceID != uuid.Nil {
-		items = []dto.AppointmentItem{{
-			ServiceID: appointment.ServiceID.String(),
-			Name:      appointment.ServiceName,
-			Price:     appointment.ServicePrice,
-			Duration:  appointment.ServiceDuration,
-			Image:     appointment.ServiceImage,
-			Quantity:  1,
-		}}
-	}
-	return dto.AppointmentResponse{ID: appointment.ID.String(), UserID: appointment.UserID.String(), UserName: appointment.User.Name, UserEmail: appointment.User.Email, UserPhone: appointment.User.Phone, IsManual: strings.EqualFold(strings.TrimSpace(appointment.User.Role), "ADMIN"), ServiceID: appointment.ServiceID.String(), ServiceName: appointment.ServiceName, ServicePrice: appointment.ServicePrice, ServiceDuration: appointment.ServiceDuration, ServiceImage: appointment.ServiceImage, AppointmentDate: appointment.AppointmentDate, StartTime: appointment.StartTime, Status: status, Notes: appointment.Notes, CreatedAt: appointment.CreatedAt.Format(time.RFC3339), CanConfirm: canConfirm, CanComplete: withinCompletionWindow, IsPast: isPast, NeedsReview: needsReview, Items: items}
+	groupID := appointmentBookingGroupID(primary)
+
+	return dto.AppointmentResponse{
+		ID:              groupID.String(),
+		UserID:          primary.UserID.String(),
+		UserName:        primary.User.Name,
+		UserEmail:       primary.User.Email,
+		UserPhone:       primary.User.Phone,
+		CustomerName:    primary.CustomerName,
+		ServiceID:       primary.ServiceID.String(),
+		ServiceName:     primary.ServiceName,
+		ServicePrice:    totalPrice,
+		ServiceDuration: minutesToDuration(totalDuration),
+		ServiceImage:    primary.ServiceImage,
+		AppointmentDate: primary.AppointmentDate,
+		StartTime:       primary.StartTime,
+		EndTime:         endTime,
+		Status:          status,
+		Notes:           primary.Notes,
+		CreatedAt:       primary.CreatedAt.Format(time.RFC3339),
+		CanConfirm:      canConfirm,
+		CanComplete:     withinCompletionWindow,
+		IsPast:          isPast,
+		NeedsReview:     needsReview,
+		Services:        services,
+	}, nil
 }
 
-func listResponses(appointments []models.Appointments) []dto.AppointmentResponse {
+func (service *service) listResponses(appointments []models.Appointments) ([]dto.AppointmentResponse, error) {
 	now := time.Now()
 	sort.SliceStable(appointments, func(i, j int) bool {
 		a, _ := appointmentTime(appointments[i])
@@ -54,11 +107,26 @@ func listResponses(appointments []models.Appointments) []dto.AppointmentResponse
 		}
 		return a.Before(b)
 	})
-	result := make([]dto.AppointmentResponse, 0, len(appointments))
+
+	groups := make(map[uuid.UUID][]models.Appointments, len(appointments))
+	groupOrder := make([]uuid.UUID, 0, len(appointments))
 	for _, appointment := range appointments {
-		result = append(result, appointmentResponse(appointment, now))
+		groupID := appointmentBookingGroupID(appointment)
+		if _, exists := groups[groupID]; !exists {
+			groupOrder = append(groupOrder, groupID)
+		}
+		groups[groupID] = append(groups[groupID], appointment)
 	}
-	return result
+
+	result := make([]dto.AppointmentResponse, 0, len(groups))
+	for _, groupID := range groupOrder {
+		response, err := appointmentResponse(groups[groupID], now)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, response)
+	}
+	return result, nil
 }
 
 func (service *service) ListByUserID(userID string) ([]dto.AppointmentResponse, error) {
@@ -66,7 +134,7 @@ func (service *service) ListByUserID(userID string) ([]dto.AppointmentResponse, 
 	if err != nil {
 		return nil, err
 	}
-	return listResponses(appointments), nil
+	return service.listResponses(appointments)
 }
 
 func (service *service) ListAll() ([]dto.AppointmentResponse, error) {
@@ -74,7 +142,7 @@ func (service *service) ListAll() ([]dto.AppointmentResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	return listResponses(appointments), nil
+	return service.listResponses(appointments)
 }
 
 func (service *service) ListAgenda(from, to string) ([]dto.AppointmentResponse, error) {
@@ -97,7 +165,15 @@ func (service *service) ListAgenda(from, to string) ([]dto.AppointmentResponse, 
 	if err != nil {
 		return nil, err
 	}
-	return listResponses(appointments), nil
+	return service.listResponses(appointments)
+}
+
+func (service *service) responseFor(appointment models.Appointments) (dto.AppointmentResponse, error) {
+	appointments, err := service.repository.FindByBookingGroupID(appointmentBookingGroupID(appointment))
+	if err != nil {
+		return dto.AppointmentResponse{}, err
+	}
+	return appointmentResponse(appointments, time.Now())
 }
 
 func (service *service) ConfirmAttendance(userID string, appointmentID uuid.UUID) (dto.AppointmentResponse, error) {
@@ -126,7 +202,7 @@ func (service *service) ConfirmAttendance(userID string, appointmentID uuid.UUID
 	if err := service.repository.Update(appointment); err != nil {
 		return dto.AppointmentResponse{}, err
 	}
-	return appointmentResponse(*appointment, now), nil
+	return service.responseFor(*appointment)
 }
 
 func (service *service) Complete(appointmentID uuid.UUID) (dto.AppointmentResponse, error) {
@@ -146,7 +222,7 @@ func (service *service) Complete(appointmentID uuid.UUID) (dto.AppointmentRespon
 	if err := service.repository.Update(appointment); err != nil {
 		return dto.AppointmentResponse{}, err
 	}
-	return appointmentResponse(*appointment, time.Now()), nil
+	return service.responseFor(*appointment)
 }
 
 func (service *service) SetStatus(appointmentID uuid.UUID, status string) (dto.AppointmentResponse, error) {
@@ -174,5 +250,5 @@ func (service *service) SetStatus(appointmentID uuid.UUID, status string) (dto.A
 	if err := service.repository.Update(appointment); err != nil {
 		return dto.AppointmentResponse{}, err
 	}
-	return appointmentResponse(*appointment, time.Now()), nil
+	return service.responseFor(*appointment)
 }

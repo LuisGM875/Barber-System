@@ -330,15 +330,11 @@ export default function BookingPage() {
 
 		const payload: AppointmentPayload = {
 			serviceId: selectedService.id,
-			serviceName: selectedService.name,
-			servicePrice: selectedService.price,
-			serviceDuration: selectedService.duration,
-			serviceImage: selectedService.image,
 			appointmentDate: selectedDate,
 			startTime: selectedTime,
 			notes,
-			...(isAdmin ? { clientName: clientName.trim() } : {}),
-			items: selectedItems.map(({ service, quantity }) => ({ serviceId: service.id, quantity })),
+			...(isAdmin ? { customerName: clientName.trim() } : {}),
+			services: selectedItems.map(({ service, quantity }) => ({ serviceId: service.id, quantity })),
 		};
 
 		try {
@@ -371,20 +367,20 @@ export default function BookingPage() {
 								<img src={getImageUrl(createdAppointment.serviceImage)} alt={createdAppointment.serviceName} className="w-20 h-20 rounded-xl object-cover" />
 								<div>
 									<h2 className="font-display text-xl font-semibold" style={{ color: "#F8F5F0" }}>
-										{createdAppointment.items?.length
-											? createdAppointment.items.map((item) => `${item.name}${item.quantity > 1 ? ` x${item.quantity}` : ""}`).join(" + ")
+										{createdAppointment.services?.length
+											? createdAppointment.services.map((service) => `${service.name}${service.quantity > 1 ? ` x${service.quantity}` : ""}`).join(" + ")
 											: createdAppointment.serviceName}
 									</h2>
 									<p className="text-sm mt-1" style={{ color: "#A1A1AA" }}>{formatLongDate(createdAppointment.appointmentDate)} · {createdAppointment.startTime}</p>
 									<p className="text-sm mt-1" style={{ color: "#C9A96E" }}>${createdAppointment.servicePrice} · {createdAppointment.serviceDuration}</p>
 								</div>
 							</div>
-							{createdAppointment.items && createdAppointment.items.length > 1 ? (
+							{createdAppointment.services && createdAppointment.services.length > 1 ? (
 								<div className="mt-4 border-t border-white/[.06] pt-4 text-sm" style={{ color: "#A1A1AA" }}>
-									{createdAppointment.items.map((item) => (
-										<div key={item.serviceId} className="flex justify-between py-1">
-											<span>{item.name} {item.quantity > 1 ? `x${item.quantity}` : ""}</span>
-											<span>${(item.price * item.quantity).toFixed(2)}</span>
+									{createdAppointment.services.map((service) => (
+										<div key={service.serviceId} className="flex justify-between py-1">
+											<span>{service.name} {service.quantity > 1 ? `x${service.quantity}` : ""}</span>
+											<span>${(service.price * service.quantity).toFixed(2)}</span>
 										</div>
 									))}
 								</div>

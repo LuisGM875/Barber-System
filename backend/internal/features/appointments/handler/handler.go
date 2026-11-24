@@ -32,6 +32,7 @@ func (handler *Handler) Create(context *gin.Context) {
 		return
 	}
 	if !strings.EqualFold(strings.TrimSpace(context.GetString("role")), "ADMIN") {
+		request.CustomerName = ""
 		request.ClientName = ""
 	}
 

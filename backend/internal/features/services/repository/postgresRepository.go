@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/LuisGM875/barbersystem/internal/features/services/models"
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -38,6 +39,16 @@ func (repository *postgresRepository) FindByID(id string) (*models.Services, err
 	}
 
 	return &service, nil
+}
+
+func (repository *postgresRepository) FindByIDs(ids []uuid.UUID) ([]models.Services, error) {
+	if len(ids) == 0 {
+		return []models.Services{}, nil
+	}
+
+	var services []models.Services
+	err := repository.db.Unscoped().Where("id IN ?", ids).Find(&services).Error
+	return services, err
 }
 
 func (repository *postgresRepository) Update(service *models.Services) error {

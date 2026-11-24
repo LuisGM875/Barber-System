@@ -41,9 +41,9 @@ function AppointmentRow({ appointment, isAdmin, onConfirm, onStatus, onReschedul
         <article className="flex flex-col gap-4 rounded-2xl border border-white/[.06] bg-[#1C1C1C] p-4 sm:flex-row sm:items-center">
             <img src={getImageUrl(appointment.serviceImage)} alt={appointment.serviceName} className="h-24 w-full rounded-xl object-cover sm:h-20 sm:w-24" />
             <div className="min-w-0 flex-1">
-                <h3 className="font-display text-lg font-semibold">{appointment.isManual ? appointment.serviceName : appointment.userName || "Cliente"} · {appointment.items?.length ? appointment.items.map((item) => `${item.name}${item.quantity > 1 ? ` x${item.quantity}` : ""}`).join(" + ") : appointment.serviceName}</h3>
-                {isAdmin && !appointment.isManual && <p className="mt-1 text-xs font-medium text-[#C9A96E]">Cliente: {appointment.userName || appointment.userId}</p>}
-                <p className="mt-1 text-sm text-zinc-400">{formatDate(appointment.appointmentDate)} · {appointment.startTime}</p>
+                <h3 className="font-display text-lg font-semibold">{appointment.customerName || appointment.userName || "Cliente"} · {appointment.services?.length ? appointment.services.map((service) => `${service.name}${service.quantity > 1 ? ` x${service.quantity}` : ""}`).join(" + ") : appointment.serviceName}</h3>
+                {isAdmin && !appointment.customerName && <p className="mt-1 text-xs font-medium text-[#C9A96E]">Cliente: {appointment.userName || appointment.userId}</p>}
+                <p className="mt-1 text-sm text-zinc-400">{formatDate(appointment.appointmentDate)} · {appointment.startTime}–{appointment.endTime}</p>
                 <p className="mt-1 text-xs text-zinc-500">Duración: {appointment.serviceDuration}{appointment.notes ? ` · ${appointment.notes}` : ""}</p>
             </div>
             <div className="flex items-center justify-between gap-4 sm:flex-col sm:items-end">
@@ -122,7 +122,7 @@ export default function ClientDashboard() {
 
     useEffect(() => {
         if (!rescheduling || !rescheduleDate) return;
-        getAvailability(rescheduleDate, rescheduling.serviceId, rescheduling.id)
+        getAvailability(rescheduleDate, rescheduling.serviceId, rescheduling.id, rescheduling.services?.flatMap((service) => Array(service.quantity).fill(service.serviceId)))
             .then((response) => setBookedTimes(response.bookedTimes))
             .catch((err) => setError(err instanceof Error ? err.message : "No se pudo consultar la disponibilidad"))
             .finally(() => setRescheduleLoading(false));

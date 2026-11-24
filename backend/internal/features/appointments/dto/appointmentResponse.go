@@ -6,7 +6,7 @@ type AppointmentResponse struct {
 	UserName        string            `json:"userName,omitempty"`
 	UserEmail       string            `json:"userEmail,omitempty"`
 	UserPhone       string            `json:"userPhone,omitempty"`
-	IsManual        bool               `json:"isManual"`
+	CustomerName    string            `json:"customerName,omitempty"`
 	ServiceID       string            `json:"serviceId"`
 	ServiceName     string            `json:"serviceName"`
 	ServicePrice    float64           `json:"servicePrice"`
@@ -14,6 +14,7 @@ type AppointmentResponse struct {
 	ServiceImage    string            `json:"serviceImage"`
 	AppointmentDate string            `json:"appointmentDate"`
 	StartTime       string            `json:"startTime"`
+	EndTime         string            `json:"endTime"`
 	Status          string            `json:"status"`
 	Notes           string            `json:"notes"`
 	CreatedAt       string            `json:"createdAt"`
@@ -21,5 +22,5 @@ type AppointmentResponse struct {
 	CanComplete     bool              `json:"canComplete"`
 	IsPast          bool              `json:"isPast"`
 	NeedsReview     bool              `json:"needsReview"`
-	Items           []AppointmentItem `json:"items"`
+	Services        []AppointmentService `json:"services"`
 }

@@ -15,7 +15,7 @@ func TestBookingDuration(t *testing.T) {
 	}{
 		{name: "servicio corto bloquea toda su duración", duration: 30, want: 30},
 		{name: "una hora bloquea toda su duración", duration: 60, want: 60},
-		{name: "más de una hora libera treinta minutos", duration: 90, want: 60},
+		{name: "más de una hora bloquea hasta el término real", duration: 90, want: 90},
 	}
 
 	for _, test := range tests {
@@ -27,7 +27,7 @@ func TestBookingDuration(t *testing.T) {
 	}
 }
 
-func TestLongAppointmentAllowsNextAppointmentInLastHalfHour(t *testing.T) {
+func TestLongAppointmentBlocksNextAppointmentUntilEnd(t *testing.T) {
 	const (
 		firstStart     = 15 * 60
 		firstDuration  = 90
@@ -35,13 +35,13 @@ func TestLongAppointmentAllowsNextAppointmentInLastHalfHour(t *testing.T) {
 		secondDuration = 30
 	)
 
-	if timesOverlap(
+	if !timesOverlap(
 		firstStart,
 		bookingDuration(firstDuration),
 		secondStart,
 		bookingDuration(secondDuration),
 	) {
-		t.Fatal("la cita de las 16:00 debería estar disponible cuando la cita larga comenzó a las 15:00")
+		t.Fatal("la cita de las 16:00 debe permanecer bloqueada hasta terminar la cita larga")
 	}
 }
 
