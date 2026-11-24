@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -152,40 +153,23 @@ func (handler *Handler) GetAvailability(c *gin.Context) {
 		c.JSON(
 			http.StatusBadRequest,
 			gin.H{
-				"message": "Fecha y servicio son requeridos",
+				"message": "La fecha es requerida",
 			},
 		)
 
 		return
 	}
 
-	serviceID, err := uuid.Parse(
-		query.ServiceID,
-	)
-
+	serviceID, serviceIDs, err := parseAvailabilityServiceIDs(query.ServiceID, query.ServiceIDs)
 	if err != nil {
-
 		c.JSON(
 			http.StatusBadRequest,
 			gin.H{
-				"message": "serviceId inválido",
+				"message": err.Error(),
 			},
 		)
 
 		return
-	}
-
-	serviceIDs := []uuid.UUID{serviceID}
-	if query.ServiceIDs != "" {
-		serviceIDs = make([]uuid.UUID, 0)
-		for _, rawID := range strings.Split(query.ServiceIDs, ",") {
-			id, parseErr := uuid.Parse(strings.TrimSpace(rawID))
-			if parseErr != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"message": "serviceIds inválido"})
-				return
-			}
-			serviceIDs = append(serviceIDs, id)
-		}
 	}
 
 	var excludeAppointmentID *uuid.UUID
@@ -221,4 +205,53 @@ func (handler *Handler) GetAvailability(c *gin.Context) {
 		http.StatusOK,
 		response,
 	)
+}
+
+func (handler *Handler) GetAvailabilityRange(c *gin.Context) {
+	var query dto.AvailabilityRangeQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Rango de fechas y servicio son requeridos"})
+		return
+	}
+
+	serviceID, serviceIDs, err := parseAvailabilityServiceIDs(query.ServiceID, query.ServiceIDs)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	response, err := handler.service.GetAvailabilityRange(query.From, query.To, serviceID, serviceIDs)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, response)
+}
+
+func parseAvailabilityServiceIDs(serviceIDValue string, serviceIDsValue string) (uuid.UUID, []uuid.UUID, error) {
+	serviceID := uuid.Nil
+	serviceIDs := make([]uuid.UUID, 0)
+	if serviceIDValue != "" {
+		parsedID, err := uuid.Parse(serviceIDValue)
+		if err != nil {
+			return uuid.Nil, nil, errors.New("serviceId inválido")
+		}
+		serviceID = parsedID
+		serviceIDs = append(serviceIDs, parsedID)
+	}
+
+	if serviceIDsValue != "" {
+		serviceIDs = make([]uuid.UUID, 0)
+		if serviceID == uuid.Nil {
+			return uuid.Nil, nil, errors.New("serviceId requerido cuando se envía serviceIds")
+		}
+		for _, rawID := range strings.Split(serviceIDsValue, ",") {
+			id, parseErr := uuid.Parse(strings.TrimSpace(rawID))
+			if parseErr != nil {
+				return uuid.Nil, nil, errors.New("serviceIds inválido")
+			}
+			serviceIDs = append(serviceIDs, id)
+		}
+	}
+	return serviceID, serviceIDs, nil
 }

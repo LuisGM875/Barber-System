@@ -31,14 +31,25 @@ type AppointmentItem struct {
 
 type AvailabilityQuery struct {
 	Date                 string `form:"date" binding:"required"`
-	ServiceID            string `form:"serviceId" binding:"required"`
+	ServiceID            string `form:"serviceId"`
 	ExcludeAppointmentID string `form:"excludeAppointmentId"`
 	ServiceIDs           string `form:"serviceIds"`
+}
+
+type AvailabilityRangeQuery struct {
+	From       string `form:"from" binding:"required"`
+	To         string `form:"to" binding:"required"`
+	ServiceID  string `form:"serviceId" binding:"required"`
+	ServiceIDs string `form:"serviceIds"`
 }
 
 type AvailabilityResponse struct {
 	Date        string   `json:"date"`
 	BookedTimes []string `json:"bookedTimes"`
+}
+
+type AvailabilityRangeResponse struct {
+	BookedTimesByDate map[string][]string `json:"bookedTimesByDate"`
 }
 
 type RescheduleRequest struct {

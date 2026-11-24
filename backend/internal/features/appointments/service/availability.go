@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/LuisGM875/barbersystem/internal/features/appointments/dto"
+	"github.com/LuisGM875/barbersystem/internal/features/appointments/models"
 	"github.com/google/uuid"
 )
 
@@ -160,28 +161,17 @@ func (s *service) GetAvailability(
 		)
 	}
 
-	// Buscar el servicio real en la tabla services.
-	if len(serviceIDs) == 0 {
+	if len(serviceIDs) == 0 && serviceID != uuid.Nil {
 		serviceIDs = []uuid.UUID{serviceID}
 	}
 
-	newDuration := 0
-	for _, id := range serviceIDs {
-		service, err := s.serviceRepository.FindByID(id.String())
-		if err != nil || service == nil {
-			return dto.AvailabilityResponse{}, errors.New("servicio no encontrado")
-		}
-		if !service.IsActive {
-			return dto.AvailabilityResponse{}, errors.New("el servicio no está disponible")
-		}
-		duration, err := parseDuration(service.Duration)
+	newBookingDuration := 30
+	if len(serviceIDs) > 0 {
+		newBookingDuration, err = s.bookingDurationForServices(serviceIDs)
 		if err != nil {
 			return dto.AvailabilityResponse{}, err
 		}
-		newDuration += duration
 	}
-
-	newBookingDuration := bookingDuration(newDuration)
 
 	// Obtener todas las citas de ese día.
 	appointments, err := s.repository.FindByDate(date)
@@ -190,73 +180,122 @@ func (s *service) GetAvailability(
 		return dto.AvailabilityResponse{}, err
 	}
 
-	bookedTimes := make(
-		[]string,
-		0,
-	)
+	return dto.AvailabilityResponse{
+		Date:        dateValue,
+		BookedTimes: findBookedTimes(appointments, newBookingDuration, excludeAppointmentID),
+	}, nil
+}
 
-	// Revisamos cada horario disponible.
+func (s *service) GetAvailabilityRange(
+	from string,
+	to string,
+	serviceID uuid.UUID,
+	serviceIDs []uuid.UUID,
+) (dto.AvailabilityRangeResponse, error) {
+	fromDate, err := time.Parse("2006-01-02", from)
+	if err != nil {
+		return dto.AvailabilityRangeResponse{}, errors.New("fecha inicial inválida")
+	}
+	toDate, err := time.Parse("2006-01-02", to)
+	if err != nil {
+		return dto.AvailabilityRangeResponse{}, errors.New("fecha final inválida")
+	}
+	if toDate.Before(fromDate) || toDate.Sub(fromDate) > 30*24*time.Hour {
+		return dto.AvailabilityRangeResponse{}, errors.New("el rango de disponibilidad no puede superar un mes")
+	}
+	if len(serviceIDs) == 0 {
+		serviceIDs = []uuid.UUID{serviceID}
+	}
+
+	newBookingDuration, err := s.bookingDurationForServices(serviceIDs)
+	if err != nil {
+		return dto.AvailabilityRangeResponse{}, err
+	}
+	appointments, err := s.repository.FindByDateRange(from, to)
+	if err != nil {
+		return dto.AvailabilityRangeResponse{}, err
+	}
+
+	return dto.AvailabilityRangeResponse{
+		BookedTimesByDate: findBookedTimesByDate(fromDate, toDate, appointments, newBookingDuration),
+	}, nil
+}
+
+func (s *service) bookingDurationForServices(serviceIDs []uuid.UUID) (int, error) {
+	newDuration := 0
+	for _, id := range serviceIDs {
+		service, err := s.serviceRepository.FindByID(id.String())
+		if err != nil || service == nil {
+			return 0, errors.New("servicio no encontrado")
+		}
+		if !service.IsActive {
+			return 0, errors.New("el servicio no está disponible")
+		}
+		duration, err := parseDuration(service.Duration)
+		if err != nil {
+			return 0, err
+		}
+		newDuration += duration
+	}
+	return bookingDuration(newDuration), nil
+}
+
+func findBookedTimes(
+	appointments []models.Appointments,
+	candidateDuration int,
+	excludeAppointmentID *uuid.UUID,
+) []string {
+	bookedTimes := make([]string, 0)
 	for _, availableTime := range availableTimes {
-
-		candidateStart, err := timeToMinutes(
-			availableTime,
-		)
-
+		candidateStart, err := timeToMinutes(availableTime)
 		if err != nil {
 			continue
 		}
-
-		isBooked := false
-
-		// Revisamos contra todas las citas existentes.
 		for _, appointment := range appointments {
 			if excludeAppointmentID != nil && appointment.ID == *excludeAppointmentID {
 				continue
 			}
-
-			existingStart, err := timeToMinutes(
-				appointment.StartTime,
-			)
-
+			existingStart, err := timeToMinutes(appointment.StartTime)
 			if err != nil {
 				continue
 			}
-
-			existingDuration, err := parseDuration(
-				appointment.ServiceDuration,
-			)
-
+			existingDuration, err := parseDuration(appointment.ServiceDuration)
 			if err != nil {
 				continue
 			}
-
-			existingBookingDuration := bookingDuration(existingDuration)
-
-			// Si los intervalos se cruzan,
-			// bloqueamos el horario.
-			if timesOverlap(
-				candidateStart,
-				newBookingDuration,
-				existingStart,
-				existingBookingDuration,
-			) {
-				isBooked = true
+			if timesOverlap(candidateStart, candidateDuration, existingStart, bookingDuration(existingDuration)) {
+				bookedTimes = append(bookedTimes, availableTime)
 				break
 			}
 		}
+	}
+	return bookedTimes
+}
 
-		if isBooked {
-			bookedTimes = append(
-				bookedTimes,
-				availableTime,
-			)
-		}
+func findBookedTimesByDate(
+	fromDate time.Time,
+	toDate time.Time,
+	appointments []models.Appointments,
+	candidateDuration int,
+) map[string][]string {
+	appointmentsByDate := make(map[string][]models.Appointments)
+	for _, appointment := range appointments {
+		appointmentsByDate[appointment.AppointmentDate] = append(
+			appointmentsByDate[appointment.AppointmentDate],
+			appointment,
+		)
 	}
 
-	return dto.AvailabilityResponse{
-		Date:        dateValue,
-		BookedTimes: bookedTimes,
-	}, nil
+	bookedTimesByDate := make(map[string][]string)
+	for date := fromDate; !date.After(toDate); date = date.AddDate(0, 0, 1) {
+		dateValue := date.Format("2006-01-02")
+		bookedTimesByDate[dateValue] = findBookedTimes(
+			appointmentsByDate[dateValue],
+			candidateDuration,
+			nil,
+		)
+	}
+	return bookedTimesByDate
 }
 
 func minutesToTime(minutes int) string {

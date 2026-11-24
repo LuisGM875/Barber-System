@@ -31,6 +31,7 @@ type Service interface {
 		serviceIDs []uuid.UUID,
 		excludeAppointmentID *uuid.UUID,
 	) (dto.AvailabilityResponse, error)
+	GetAvailabilityRange(from, to string, serviceID uuid.UUID, serviceIDs []uuid.UUID) (dto.AvailabilityRangeResponse, error)
 	Reschedule(userID string, role string, appointmentID uuid.UUID, request dto.RescheduleRequest) (dto.AppointmentResponse, error)
 }
 

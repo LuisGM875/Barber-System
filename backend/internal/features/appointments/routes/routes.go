@@ -11,6 +11,7 @@ func RegisterRoutes(router *gin.RouterGroup, handler *appointmentHandler.Handler
 	router.GET("/all", middleware.RequireRole("ADMIN"), handler.ListAll)
 	router.GET("/admin/agenda", middleware.RequireRole("ADMIN"), handler.ListAgenda)
 	router.POST("", handler.Create)
+	router.GET("/availability/range", handler.GetAvailabilityRange)
 	router.GET("/availability", handler.GetAvailability)
 	router.PATCH("/:id/confirm", handler.ConfirmAttendance)
 	router.PATCH("/:id/complete", middleware.RequireRole("ADMIN"), handler.Complete)

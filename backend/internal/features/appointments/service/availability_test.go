@@ -1,6 +1,11 @@
 package service
 
-import "testing"
+import (
+	"testing"
+	"time"
+
+	"github.com/LuisGM875/barbersystem/internal/features/appointments/models"
+)
 
 func TestBookingDuration(t *testing.T) {
 	tests := []struct {
@@ -37,5 +42,43 @@ func TestLongAppointmentAllowsNextAppointmentInLastHalfHour(t *testing.T) {
 		bookingDuration(secondDuration),
 	) {
 		t.Fatal("la cita de las 16:00 debería estar disponible cuando la cita larga comenzó a las 15:00")
+	}
+}
+
+func TestFindBookedTimesByDate(t *testing.T) {
+	fromDate := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
+	toDate := fromDate.AddDate(0, 0, 1)
+	appointments := make([]models.Appointments, 0, len(availableTimes)+1)
+	for _, startTime := range availableTimes {
+		appointments = append(appointments, models.Appointments{
+			AppointmentDate: fromDate.Format("2006-01-02"),
+			StartTime:       startTime,
+			ServiceDuration: "30min",
+		})
+	}
+	appointments = append(appointments, models.Appointments{
+		AppointmentDate: toDate.Format("2006-01-02"),
+		StartTime:       availableTimes[0],
+		ServiceDuration: "30min",
+	})
+
+	got := findBookedTimesByDate(fromDate, toDate, appointments, 30)
+	if len(got[fromDate.Format("2006-01-02")]) != len(availableTimes) {
+		t.Fatal("expected every time on the first date to be booked")
+	}
+	if len(got[toDate.Format("2006-01-02")]) != 1 {
+		t.Fatal("expected only one booked time on the second date")
+	}
+}
+
+func TestAvailabilityWithoutSelectedServiceBlocksExistingAppointmentDuration(t *testing.T) {
+	appointments := []models.Appointments{{
+		StartTime:       "15:00",
+		ServiceDuration: "60min",
+	}}
+
+	bookedTimes := findBookedTimes(appointments, 30, nil)
+	if len(bookedTimes) != 2 || bookedTimes[0] != "15:00" || bookedTimes[1] != "15:30" {
+		t.Fatalf("booked times = %v; want [15:00 15:30]", bookedTimes)
 	}
 }
